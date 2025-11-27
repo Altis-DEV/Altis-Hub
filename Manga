@@ -50,7 +50,7 @@ local win = MangaMaker:CreateWindow("Chapter 1")
 
 -- Thêm ảnh nhanh
 for i=1,24 do
-    local url = "https://raw.githubusercontent.com/phanchitinhps2020-beep/Ung-dung-thoi-mien-co-em-gai-nho/refs/heads/main/"i".jpg"
+    local url = "https://raw.githubusercontent.com/phanchitinhps2020-beep/Ung-dung-thoi-mien-co-em-gai-nho/refs/heads/main/"..i..".jpg"
     win:AddImage(url)
 end
     end
