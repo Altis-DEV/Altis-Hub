@@ -35,7 +35,7 @@ title.Position = UDim2.fromOffset(10, 5)
 title.BackgroundTransparency = 1
 title.TextXAlignment = Enum.TextXAlignment.Left
 title.TextColor3 = Color3.new(1,1,1)
-title.Text = "Đang phát: None"
+title.Text = "Play: None"
 title.Font = Enum.Font.Gotham
 title.TextSize = 14
 
@@ -80,7 +80,7 @@ timeRight.Text = "00:00"
 local play = Instance.new("TextButton", main)
 play.Size = UDim2.fromOffset(80,30)
 play.Position = UDim2.fromOffset(20,110)
-play.Text = "Play"
+play.Text = "▶️"
 play.Font = Enum.Font.GothamBold
 play.TextSize = 14
 play.BackgroundColor3 = Color3.fromRGB(80,80,80)
