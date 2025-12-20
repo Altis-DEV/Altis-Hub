@@ -89,7 +89,7 @@ play.TextColor3 = Color3.new(1,1,1)
 local back = Instance.new("TextButton", main)
 back.Size = UDim2.fromOffset(40,30)
 back.Position = UDim2.fromOffset(110,110)
-back.Text = "-5"
+back.Text = "⏪️"
 back.Font = Enum.Font.GothamBold
 back.TextSize = 14
 back.BackgroundColor3 = Color3.fromRGB(80,80,80)
@@ -98,8 +98,7 @@ back.TextColor3 = Color3.new(1,1,1)
 local forward = Instance.new("TextButton", main)
 forward.Size = UDim2.fromOffset(40,30)
 forward.Position = UDim2.fromOffset(160,110)
-forward.Text = "+5"
-forward.Font = Enum.Font.GothamBold
+forward.Text = "⏩️"
 forward.TextSize = 14
 forward.BackgroundColor3 = Color3.fromRGB(80,80,80)
 forward.TextColor3 = Color3.new(1,1,1)
@@ -165,10 +164,10 @@ end)
 play.MouseButton1Click:Connect(function()
 	if sound.IsPlaying then
 		sound:Pause()
-		play.Text = "Play"
+		play.Text = "▶️"
 	else
 		sound:Play()
-		play.Text = "Pause"
+		play.Text = "⏸️"
 	end
 end)
 
@@ -191,7 +190,7 @@ close.MouseButton1Click:Connect(function()
 end)
 
 sound.Ended:Connect(function()
-	play.Text = "Play"
+	play.Text = "▶️"
 	barFill.Size = UDim2.new(0,0,1,0)
 	timeLeft.Text = "00:00"
 end)
@@ -238,7 +237,7 @@ function MusicPlayer.CreateSound(data)
 	local btn = Instance.new("TextButton", card)
 	btn.Size = UDim2.fromOffset(120,30)
 	btn.Position = UDim2.fromOffset(10, name.Position.Y.Offset + name.Size.Y.Offset + 6)
-	btn.Text = "Chọn / Play"
+	btn.Text = "Choose/Play"
 	btn.Font = Enum.Font.GothamBold
 	btn.TextSize = 13
 	btn.BackgroundColor3 = Color3.fromRGB(80,80,80)
@@ -263,8 +262,8 @@ function MusicPlayer.CreateSound(data)
 		sound.TimePosition = 0
 		sound:Play()
 
-		play.Text = "Pause"
-		title.Text = "Đang phát: "..data.SoundName
+		play.Text = "⏸️"
+		title.Text = "Play: "..data.SoundName
 	end)
 end
 
