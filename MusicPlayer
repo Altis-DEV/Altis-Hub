@@ -1,0 +1,278 @@
+--// SERVICES
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local SoundService = game:GetService("SoundService")
+local LocalPlayer = Players.LocalPlayer
+
+--// EXECUTOR API
+local req = request or http_request or syn.request
+local getasset = getsynasset or getcustomasset
+assert(req and getasset and writefile, "Executor không hỗ trợ request / asset / writefile")
+
+--// CONTROLLER
+local MusicPlayer = {}
+
+--// GUI
+local gui = Instance.new("ScreenGui")
+gui.Name = "MusicPlayerGui"
+gui.ResetOnSpawn = false
+gui.Parent = LocalPlayer.PlayerGui
+
+--// MAIN FRAME
+local main = Instance.new("Frame", gui)
+main.Size = UDim2.fromOffset(420, 160)
+main.Position = UDim2.fromScale(0.5, 0.5)
+main.AnchorPoint = Vector2.new(0.5, 0.5)
+main.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+main.Active = true
+main.Draggable = true
+main.BorderSizePixel = 0
+
+--// TITLE
+local title = Instance.new("TextLabel", main)
+title.Size = UDim2.new(1, -40, 0, 30)
+title.Position = UDim2.fromOffset(10, 5)
+title.BackgroundTransparency = 1
+title.TextXAlignment = Enum.TextXAlignment.Left
+title.TextColor3 = Color3.new(1,1,1)
+title.Text = "Đang phát: None"
+title.Font = Enum.Font.Gotham
+title.TextSize = 14
+
+--// CLOSE
+local close = Instance.new("TextButton", main)
+close.Size = UDim2.fromOffset(30, 30)
+close.Position = UDim2.new(1, -35, 0, 5)
+close.Text = "X"
+close.Font = Enum.Font.GothamBold
+close.TextSize = 14
+close.BackgroundColor3 = Color3.fromRGB(180,60,60)
+close.TextColor3 = Color3.new(1,1,1)
+
+--// PROGRESS BAR
+local barBG = Instance.new("Frame", main)
+barBG.Size = UDim2.new(1, -40, 0, 10)
+barBG.Position = UDim2.fromOffset(20, 60)
+barBG.BackgroundColor3 = Color3.fromRGB(90,90,90)
+barBG.BorderSizePixel = 0
+
+local barFill = Instance.new("Frame", barBG)
+barFill.Size = UDim2.new(0,0,1,0)
+barFill.BackgroundColor3 = Color3.new(1,1,1)
+barFill.BorderSizePixel = 0
+
+--// TIME
+local timeLeft = Instance.new("TextLabel", main)
+timeLeft.Size = UDim2.fromOffset(60,20)
+timeLeft.Position = UDim2.fromOffset(20,75)
+timeLeft.BackgroundTransparency = 1
+timeLeft.Text = "00:00"
+timeLeft.TextColor3 = Color3.new(1,1,1)
+timeLeft.Font = Enum.Font.Gotham
+timeLeft.TextSize = 12
+
+local timeRight = timeLeft:Clone()
+timeRight.Parent = main
+timeRight.Position = UDim2.new(1,-80,0,75)
+timeRight.Text = "00:00"
+
+--// BUTTONS
+local play = Instance.new("TextButton", main)
+play.Size = UDim2.fromOffset(80,30)
+play.Position = UDim2.fromOffset(20,110)
+play.Text = "Play"
+play.Font = Enum.Font.GothamBold
+play.TextSize = 14
+play.BackgroundColor3 = Color3.fromRGB(80,80,80)
+play.TextColor3 = Color3.new(1,1,1)
+
+local back = Instance.new("TextButton", main)
+back.Size = UDim2.fromOffset(40,30)
+back.Position = UDim2.fromOffset(110,110)
+back.Text = "-5"
+back.Font = Enum.Font.GothamBold
+back.TextSize = 14
+back.BackgroundColor3 = Color3.fromRGB(80,80,80)
+back.TextColor3 = Color3.new(1,1,1)
+
+local forward = Instance.new("TextButton", main)
+forward.Size = UDim2.fromOffset(40,30)
+forward.Position = UDim2.fromOffset(160,110)
+forward.Text = "+5"
+forward.Font = Enum.Font.GothamBold
+forward.TextSize = 14
+forward.BackgroundColor3 = Color3.fromRGB(80,80,80)
+forward.TextColor3 = Color3.new(1,1,1)
+
+--// LIST TOGGLE
+local toggleList = Instance.new("TextButton", main)
+toggleList.Size = UDim2.fromOffset(30,30)
+toggleList.Position = UDim2.new(1,-40,1,-40)
+toggleList.Text = ">"
+toggleList.Font = Enum.Font.GothamBold
+toggleList.TextSize = 14
+toggleList.BackgroundColor3 = Color3.fromRGB(80,80,80)
+toggleList.TextColor3 = Color3.new(1,1,1)
+
+--// LIST FRAME
+local list = Instance.new("Frame", main)
+list.Size = UDim2.fromOffset(240,160)
+list.Position = UDim2.new(1,10,0,0)
+list.BackgroundColor3 = Color3.fromRGB(45,45,45)
+list.Visible = false
+list.BorderSizePixel = 0
+
+local scroll = Instance.new("ScrollingFrame", list)
+scroll.Size = UDim2.new(1,0,1,0)
+scroll.CanvasSize = UDim2.new(0,0,0,0)
+scroll.ScrollBarThickness = 6
+scroll.BackgroundTransparency = 1
+
+local layout = Instance.new("UIListLayout", scroll)
+layout.Padding = UDim.new(0,10)
+
+layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+	scroll.CanvasSize = UDim2.new(0,0,0,layout.AbsoluteContentSize.Y + 10)
+end)
+
+--// SOUND
+local sound = Instance.new("Sound", SoundService)
+sound.Volume = 1
+sound.Looped = false
+
+--// UTILS
+local function formatTime(t)
+	return string.format("%02d:%02d", math.floor(t/60), math.floor(t%60))
+end
+
+local function loadImage(url, name)
+	local res = req({Url = url, Method = "GET"})
+	local file = name..".png"
+	writefile(file, res.Body)
+	return getasset(file)
+end
+
+--// UPDATE BAR
+RunService.RenderStepped:Connect(function()
+	if sound.IsPlaying and sound.TimeLength > 0 then
+		barFill.Size = UDim2.new(sound.TimePosition / sound.TimeLength,0,1,0)
+		timeLeft.Text = formatTime(sound.TimePosition)
+		timeRight.Text = formatTime(sound.TimeLength)
+	end
+end)
+
+--// PLAYER LOGIC
+play.MouseButton1Click:Connect(function()
+	if sound.IsPlaying then
+		sound:Pause()
+		play.Text = "Play"
+	else
+		sound:Play()
+		play.Text = "Pause"
+	end
+end)
+
+back.MouseButton1Click:Connect(function()
+	sound.TimePosition = math.max(0, sound.TimePosition - 5)
+end)
+
+forward.MouseButton1Click:Connect(function()
+	sound.TimePosition = math.min(sound.TimeLength, sound.TimePosition + 5)
+end)
+
+toggleList.MouseButton1Click:Connect(function()
+	list.Visible = not list.Visible
+	toggleList.Text = list.Visible and "<" or ">"
+end)
+
+close.MouseButton1Click:Connect(function()
+	sound:Stop()
+	gui:Destroy()
+end)
+
+sound.Ended:Connect(function()
+	play.Text = "Play"
+	barFill.Size = UDim2.new(0,0,1,0)
+	timeLeft.Text = "00:00"
+end)
+
+--// CREATE SOUND CARD
+function MusicPlayer.CreateSound(data)
+	local card = Instance.new("Frame")
+	card.Size = UDim2.new(1, -10, 0, 260)
+	card.BackgroundColor3 = Color3.fromRGB(55,55,55)
+	card.BorderSizePixel = 0
+	card.Parent = scroll
+
+	Instance.new("UICorner", card).CornerRadius = UDim.new(0,8)
+
+	local img = Instance.new("ImageLabel", card)
+	img.Size = UDim2.new(1,-20,0,180)
+	img.Position = UDim2.fromOffset(10,10)
+	img.BackgroundColor3 = Color3.fromRGB(30,30,30)
+	img.BorderSizePixel = 0
+	img.ScaleType = Enum.ScaleType.Crop
+	Instance.new("UICorner", img).CornerRadius = UDim.new(0,6)
+
+	task.spawn(function()
+		if data.SoundImage then
+			img.Image = loadImage(data.SoundImage, data.SoundName.."_img")
+		end
+	end)
+
+	local name = Instance.new("TextLabel", card)
+	name.Position = UDim2.fromOffset(10,200)
+	name.Size = UDim2.new(1,-20,0,40)
+	name.BackgroundTransparency = 1
+	name.TextWrapped = true
+	name.TextXAlignment = Enum.TextXAlignment.Left
+	name.TextYAlignment = Enum.TextYAlignment.Top
+	name.Font = Enum.Font.Gotham
+	name.TextSize = 14
+	name.TextColor3 = Color3.new(1,1,1)
+	name.Text = data.SoundName
+
+	task.wait()
+	name.Size = UDim2.new(1,-20,0,name.TextBounds.Y + 4)
+
+	local btn = Instance.new("TextButton", card)
+	btn.Size = UDim2.fromOffset(120,30)
+	btn.Position = UDim2.fromOffset(10, name.Position.Y.Offset + name.Size.Y.Offset + 6)
+	btn.Text = "Chọn / Play"
+	btn.Font = Enum.Font.GothamBold
+	btn.TextSize = 13
+	btn.BackgroundColor3 = Color3.fromRGB(80,80,80)
+	btn.TextColor3 = Color3.new(1,1,1)
+	Instance.new("UICorner", btn).CornerRadius = UDim.new(0,6)
+
+	local line = Instance.new("Frame", card)
+	line.Size = UDim2.new(1,-20,0,1)
+	line.Position = UDim2.new(0,10,1,-5)
+	line.BackgroundColor3 = Color3.new(1,1,1)
+	line.BorderSizePixel = 0
+
+	card.Size = UDim2.new(1,-10,0, btn.Position.Y.Offset + btn.Size.Y.Offset + 15)
+
+	btn.MouseButton1Click:Connect(function()
+		local res = req({Url = data.SoundLink, Method = "GET"})
+		local file = data.SoundName:gsub("%s+","_")..".mp3"
+		writefile(file, res.Body)
+
+		sound:Stop()
+		sound.SoundId = getasset(file)
+		sound.TimePosition = 0
+		sound:Play()
+
+		play.Text = "Pause"
+		title.Text = "Đang phát: "..data.SoundName
+	end)
+end
+
+for i = 1,5 do
+--// DEMO
+MusicPlayer.CreateSound({
+	SoundName = "Eclipser Test "..i,
+	SoundImage = "https://raw.githubusercontent.com/Altis-DEV/file/refs/heads/main/eclipser.jpg",
+	SoundLink = "https://github.com/Altis-DEV/file/raw/refs/heads/main/ECLIPSER-30s.mp3"
+})
+end
