@@ -498,6 +498,6 @@ CreateSound({
 
 CreateSound({
 	SoundName = "No Batidao",
-	SoundImage = "https://raw.githubusercontent.com/Altis-DEV/file/main/Nobatidao.jpg",
+	SoundImage = "https://raw.githubusercontent.com/Altis-DEV/file/refs/heads/main/NoBatidao.jpg",
 	SoundLink = "https://github.com/Altis-DEV/file/raw/refs/heads/main/NoBatidao.mp3"
 })
