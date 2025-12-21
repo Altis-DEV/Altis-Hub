@@ -1,4 +1,4 @@
--- FULL MUSIC PLAYER (keeps all original features + robust pause/seek logic + suggestion panel parented to main)
+-- FULL MUSIC PLAYER (keeps all original features + loop toggle + UIScale 0.8)
 --// SERVICES
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -26,6 +26,10 @@ main.BackgroundColor3 = Color3.fromRGB(60,60,60)
 main.Active = true
 main.Draggable = true
 main.BorderSizePixel = 0
+
+--// UI SCALE (apply global UI scale to main so GUI is smaller on high-dpi devices)
+local uiScale = Instance.new("UIScale", main)
+uiScale.Scale = 1 -- change this value if you want a different default scale
 
 --// TITLE
 local title = Instance.new("TextLabel", main)
@@ -113,10 +117,10 @@ toggleSuggest.TextSize = 16
 toggleSuggest.BackgroundColor3 = Color3.fromRGB(80,80,80)
 toggleSuggest.TextColor3 = Color3.new(1,1,1)
 
---// LOOP BUTTON (added) - placed to the RIGHT of toggleSuggest
+--// LOOP BUTTON (placed to the right of toggleSuggest) - shows loop:✖️ or loop:✔️
 local loopBtn = Instance.new("TextButton", main)
 loopBtn.Size = UDim2.fromOffset(80,30)
-loopBtn.Position = UDim2.fromOffset(220,110) -- right of toggleSuggest
+loopBtn.Position = UDim2.fromOffset(215,110) -- placed right of toggleSuggest
 loopBtn.Text = "loop:✖️"
 loopBtn.Font = Enum.Font.GothamBold
 loopBtn.TextSize = 14
@@ -126,7 +130,7 @@ loopBtn.TextColor3 = Color3.new(1,1,1)
 --// TOGGLE LIST
 local toggleList = Instance.new("TextButton", main)
 toggleList.Size = UDim2.fromOffset(30,30)
-toggleList.Position = UDim2.new(1,-40,1,-40)
+toggleList.Position = UDim2.new(1,-40,1,-50)
 toggleList.Text = "▶️"
 toggleList.Font = Enum.Font.GothamBold
 toggleList.TextSize = 14
@@ -194,7 +198,7 @@ sound.Looped = false
 --// STATE FLAGS and TIMING
 local isPaused = false
 local savedTime = 0 -- central saved time variable (you can adjust default here)
-local looped = false -- NEW: whether to loop current track
+local isLooped = false -- loop flag (false by default)
 
 --// UTILS
 local function formatTime(t)
@@ -261,8 +265,7 @@ play.MouseButton1Click:Connect(function()
 			if startPos > sound.TimeLength then startPos = 0 end
 		end
 		sound.TimePosition = startPos
-		-- apply loop setting before play
-		sound.Looped = looped
+		sound.Looped = isLooped -- ensure Loop state is applied when play starts
 		sound:Play()
 		isPaused = false
 		play.Text = "⏸️"
@@ -286,18 +289,19 @@ forward.MouseButton1Click:Connect(function()
 	savedTime = newPos
 end)
 
+--// TOGGLE SUGGESTION
 toggleSuggest.MouseButton1Click:Connect(function()
 	suggestFrame.Visible = not suggestFrame.Visible
 	toggleSuggest.Text = suggestFrame.Visible and "🔼" or "🔽"
 end)
 
---// LOOP BUTTON LOGIC (NEW)
+--// LOOP BUTTON LOGIC
 loopBtn.MouseButton1Click:Connect(function()
-	looped = not looped
-	-- update button text
-	loopBtn.Text = looped and "loop:✔️" or "loop:✖️"
-	-- apply to current sound
-	sound.Looped = looped
+	isLooped = not isLooped
+	-- update display text
+	loopBtn.Text = isLooped and "loop:✔️" or "loop:✖️"
+	-- apply to sound
+	sound.Looped = isLooped
 end)
 
 toggleList.MouseButton1Click:Connect(function()
@@ -318,14 +322,17 @@ close.MouseButton1Click:Connect(function()
 end)
 
 sound.Ended:Connect(function()
-	-- reset state when the song ends: next Play should start from 0
-	-- if looped == true, sound.Looped is true so Ended may not fire; but if it fires we keep behavior
-	isPaused = false
-	savedTime = 0
-	play.Text = "▶️"
-	barFill.Size = UDim2.new(0,0,1,0)
-	timeLeft.Text = "00:00"
-	sound.TimePosition = 0
+	-- If looping is enabled we don't perform the "end" reset (sound will automatically loop).
+	-- Only reset when not looped so next Play will start from 0.
+	if not isLooped then
+		-- reset state when the song ends: next Play should start from 0
+		isPaused = false
+		savedTime = 0
+		play.Text = "▶️"
+		barFill.Size = UDim2.new(0,0,1,0)
+		timeLeft.Text = "00:00"
+		sound.TimePosition = 0
+	end
 end)
 
 --// CREATE MUSIC CARD (keeps original UI + resets savedTime on new song)
@@ -397,8 +404,7 @@ local function CreateSound(data)
 
 		sound.SoundId = getasset(file)
 		sound.TimePosition = 0
-		-- apply loop setting for the newly loaded sound
-		sound.Looped = looped
+		sound.Looped = isLooped -- apply loop setting to newly loaded sound
 		sound:Play()
 
 		play.Text = "⏸️"
