@@ -1,4 +1,4 @@
--- FULL MUSIC PLAYER (keeps all original features + loop toggle + UIScale 0.8)
+-- FULL MUSIC PLAYER (keeps all original features + loop toggle + UIScale = 1 + top bar with copy buttons)
 --// SERVICES
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -17,9 +17,9 @@ gui.Name = "MusicPlayerGui"
 gui.ResetOnSpawn = false
 gui.Parent = LocalPlayer.PlayerGui
 
---// MAIN FRAME
+--// MAIN FRAME (expanded upward to add top bar)
 local main = Instance.new("Frame", gui)
-main.Size = UDim2.fromOffset(420,160)
+main.Size = UDim2.fromOffset(440,180) -- increased height to add top bar area
 main.Position = UDim2.fromScale(0.5,0.5)
 main.AnchorPoint = Vector2.new(0.5,0.5)
 main.BackgroundColor3 = Color3.fromRGB(60,60,60)
@@ -27,35 +27,104 @@ main.Active = true
 main.Draggable = true
 main.BorderSizePixel = 0
 
---// UI SCALE (apply global UI scale to main so GUI is smaller on high-dpi devices)
+--// UI SCALE (apply global UI scale to main so GUI is appropriate on different DPI)
 local uiScale = Instance.new("UIScale", main)
-uiScale.Scale = 1 -- change this value if you want a different default scale
+uiScale.Scale = 1 -- user requested scale = 1
 
---// TITLE
-local title = Instance.new("TextLabel", main)
-title.Size = UDim2.new(1,-40,0,30)
-title.Position = UDim2.fromOffset(10,5)
-title.BackgroundTransparency = 1
-title.TextXAlignment = Enum.TextXAlignment.Left
-title.TextColor3 = Color3.new(1,1,1)
-title.Text = "Now Playing: None"
-title.Font = Enum.Font.Gotham
-title.TextSize = 14
+--// TOP BAR (title + copy buttons + close moved here)
+local topBar = Instance.new("Frame", main)
+topBar.Size = UDim2.new(1, 0, 0, 40)
+topBar.Position = UDim2.new(0, 0, 0, 0)
+topBar.BackgroundTransparency = 0
+topBar.BackgroundColor3 = Color3.fromRGB(40,40,40)
 
---// CLOSE
-local close = Instance.new("TextButton", main)
+local header = Instance.new("TextLabel", topBar)
+header.Size = UDim2.new(1, -20, 1, 0)
+header.Position = UDim2.fromOffset(10, 0)
+header.BackgroundTransparency = 1
+header.TextXAlignment = Enum.TextXAlignment.Left
+header.TextYAlignment = Enum.TextYAlignment.Center
+header.TextColor3 = Color3.new(1,1,1)
+header.Font = Enum.Font.GothamBold
+header.TextSize = 14
+header.Text = "script bởi @altisscript"
+
+--// COPY BUTTONS (TikTok + Discord) placed on topBar (right side)
+local function makeCopyButton(parent, posOffsetX, textLabel, copyText)
+	local btn = Instance.new("TextButton", parent)
+	btn.Size = UDim2.fromOffset(120, 28)
+	btn.Position = UDim2.new(1, posOffsetX, 0, 6)
+	btn.AnchorPoint = Vector2.new(1,0)
+	btn.Text = textLabel
+	btn.Font = Enum.Font.GothamBold
+	btn.TextSize = 12
+	btn.BackgroundColor3 = Color3.fromRGB(70,70,70)
+	btn.TextColor3 = Color3.new(1,1,1)
+	btn.AutoButtonColor = true
+
+local fb = Instance.new("TextLabel", parent)
+	fb.Size = UDim2.fromOffset(80, 20)
+	fb.Position = UDim2.new(1, posOffsetX - 130, 0, 8)
+	fb.AnchorPoint = Vector2.new(1,0)
+	fb.BackgroundTransparency = 1
+	fb.Text = ""
+	fb.Font = Enum.Font.Gotham
+	fb.TextSize = 12
+	fb.TextColor3 = Color3.fromRGB(160,255,160)
+
+	btn.MouseButton1Click:Connect(function()
+		local ok, _ = pcall(function()
+			if setclipboard then
+				setclipboard(copyText)
+			elseif toclipboard then
+				toclipboard(copyText)
+			else
+				error("no clipboard function")
+			end
+		end)
+
+		if ok then
+			fb.Text = ""
+			delay(1.2, function() fb.Text = "" end)
+		else
+			fb.Text = ""
+			delay(1.2, function() fb.Text = "" end)
+		end
+	end)
+
+	return btn
+end
+
+-- create copy buttons: TikTok then Discord (right to left)
+local copyDiscord = makeCopyButton(topBar, -30, "copy discord", "https://discord.gg/fBWSRqbMwn")
+local copyTiktok = makeCopyButton(topBar, -160, "copy tiktok", "https://tiktok.com/@altisscript")
+
+--// MOVE CLOSE BUTTON INTO TOP BAR (top-right)
+local close = Instance.new("TextButton", topBar)
 close.Size = UDim2.fromOffset(30,30)
-close.Position = UDim2.new(1,-35,0,5)
+close.Position = UDim2.new(1,-10,0,5)
+close.AnchorPoint = Vector2.new(1,0)
 close.Text = "✖️"
 close.Font = Enum.Font.GothamBold
 close.TextSize = 16
 close.BackgroundColor3 = Color3.fromRGB(180,60,60)
 close.TextColor3 = Color3.new(1,1,1)
 
+--// TITLE (moved slightly down below topBar but kept as before)
+local title = Instance.new("TextLabel", main)
+title.Size = UDim2.new(1,-40,0,30)
+title.Position = UDim2.fromOffset(10,45) -- moved below top bar
+title.BackgroundTransparency = 1
+title.TextXAlignment = Enum.TextXAlignment.Left
+title.TextColor3 = Color3.new(1,1,1)
+title.Text = "Đang Phát: "
+title.Font = Enum.Font.Gotham
+title.TextSize = 14
+
 --// PROGRESS BAR
 local barBG = Instance.new("Frame", main)
 barBG.Size = UDim2.new(1,-40,0,10)
-barBG.Position = UDim2.fromOffset(20,60)
+barBG.Position = UDim2.fromOffset(20,90)
 barBG.BackgroundColor3 = Color3.fromRGB(90,90,90)
 barBG.BorderSizePixel = 0
 
@@ -67,7 +136,7 @@ barFill.BorderSizePixel = 0
 --// TIME LABELS
 local timeLeft = Instance.new("TextLabel", main)
 timeLeft.Size = UDim2.fromOffset(60,20)
-timeLeft.Position = UDim2.fromOffset(20,75)
+timeLeft.Position = UDim2.fromOffset(20,105)
 timeLeft.BackgroundTransparency = 1
 timeLeft.Text = "00:00"
 timeLeft.TextColor3 = Color3.new(1,1,1)
@@ -76,13 +145,13 @@ timeLeft.TextSize = 12
 
 local timeRight = timeLeft:Clone()
 timeRight.Parent = main
-timeRight.Position = UDim2.new(1,-80,0,75)
+timeRight.Position = UDim2.new(1,-80,0,105)
 timeRight.Text = "00:00"
 
 --// CONTROL BUTTONS
 local play = Instance.new("TextButton", main)
 play.Size = UDim2.fromOffset(40,30)
-play.Position = UDim2.fromOffset(20,110)
+play.Position = UDim2.fromOffset(20,140)
 play.Text = "▶️"
 play.Font = Enum.Font.GothamBold
 play.TextSize = 16
@@ -91,7 +160,7 @@ play.TextColor3 = Color3.new(1,1,1)
 
 local back = Instance.new("TextButton", main)
 back.Size = UDim2.fromOffset(40,30)
-back.Position = UDim2.fromOffset(70,110)
+back.Position = UDim2.fromOffset(70,140)
 back.Text = "⏪️"
 back.Font = Enum.Font.GothamBold
 back.TextSize = 16
@@ -100,7 +169,7 @@ back.TextColor3 = Color3.new(1,1,1)
 
 local forward = Instance.new("TextButton", main)
 forward.Size = UDim2.fromOffset(40,30)
-forward.Position = UDim2.fromOffset(120,110)
+forward.Position = UDim2.fromOffset(120,140)
 forward.Text = "⏩️"
 forward.Font = Enum.Font.GothamBold
 forward.TextSize = 16
@@ -110,7 +179,7 @@ forward.TextColor3 = Color3.new(1,1,1)
 --// TOGGLE SUGGESTION 🔼🔽 (next to forward)
 local toggleSuggest = Instance.new("TextButton", main)
 toggleSuggest.Size = UDim2.fromOffset(40,30)
-toggleSuggest.Position = UDim2.fromOffset(170,110)
+toggleSuggest.Position = UDim2.fromOffset(170,140)
 toggleSuggest.Text = "🔽"
 toggleSuggest.Font = Enum.Font.GothamBold
 toggleSuggest.TextSize = 16
@@ -120,17 +189,17 @@ toggleSuggest.TextColor3 = Color3.new(1,1,1)
 --// LOOP BUTTON (placed to the right of toggleSuggest) - shows loop:✖️ or loop:✔️
 local loopBtn = Instance.new("TextButton", main)
 loopBtn.Size = UDim2.fromOffset(80,30)
-loopBtn.Position = UDim2.fromOffset(215,110) -- placed right of toggleSuggest
-loopBtn.Text = "loop:✖️"
+loopBtn.Position = UDim2.fromOffset(215,140) -- placed right of toggleSuggest
+loopBtn.Text = "lặp lại:✖️"
 loopBtn.Font = Enum.Font.GothamBold
-loopBtn.TextSize = 14
+loopBtn.TextSize = 12
 loopBtn.BackgroundColor3 = Color3.fromRGB(80,80,80)
 loopBtn.TextColor3 = Color3.new(1,1,1)
 
 --// TOGGLE LIST
 local toggleList = Instance.new("TextButton", main)
 toggleList.Size = UDim2.fromOffset(30,30)
-toggleList.Position = UDim2.new(1,-40,1,-50)
+toggleList.Position = UDim2.new(1,-40,1,-40)
 toggleList.Text = "▶️"
 toggleList.Font = Enum.Font.GothamBold
 toggleList.TextSize = 14
@@ -139,7 +208,7 @@ toggleList.TextColor3 = Color3.new(1,1,1)
 
 --// LIST FRAME
 local list = Instance.new("Frame", main)
-list.Size = UDim2.fromOffset(240,160)
+list.Size = UDim2.fromOffset(240,180)
 list.Position = UDim2.new(1,10,0,0)
 list.BackgroundColor3 = Color3.fromRGB(45,45,45)
 list.Visible = false
@@ -161,7 +230,7 @@ end)
 --// SUGGESTION PANEL (PARENT = main so it moves with GUI)
 local suggestFrame = Instance.new("Frame", main)
 suggestFrame.Name = "SuggestionPanel"
-suggestFrame.Size = UDim2.fromOffset(420,200)
+suggestFrame.Size = UDim2.fromOffset(440,200)
 -- place directly under main
 suggestFrame.Position = UDim2.new(0,0,1,5)
 suggestFrame.AnchorPoint = Vector2.new(0,0)
@@ -175,7 +244,7 @@ suggestBox.Position = UDim2.fromOffset(10,10)
 suggestBox.MultiLine = true
 suggestBox.TextWrapped = true
 suggestBox.TextYAlignment = Enum.TextYAlignment.Top
-suggestBox.PlaceholderText = "Enter your suggestion..."
+suggestBox.PlaceholderText = "Nhập Nội Dung Góp Ý"
 suggestBox.Font = Enum.Font.Gotham
 suggestBox.TextSize = 14
 suggestBox.TextColor3 = Color3.new(1,1,1)
@@ -184,7 +253,7 @@ suggestBox.BackgroundColor3 = Color3.fromRGB(30,30,30)
 local sendBtn = Instance.new("TextButton", suggestFrame)
 sendBtn.Size = UDim2.fromOffset(90,35)
 sendBtn.Position = UDim2.new(1,-100,1,-45)
-sendBtn.Text = "📤 Send"
+sendBtn.Text = "📤 Gửi"
 sendBtn.Font = Enum.Font.GothamBold
 sendBtn.TextSize = 14
 sendBtn.BackgroundColor3 = Color3.fromRGB(80,120,80)
@@ -203,6 +272,12 @@ local isLooped = false -- loop flag (false by default)
 --// UTILS
 local function formatTime(t)
 	return string.format("%02d:%02d", math.floor(t/60), math.floor(t%60))
+end
+
+local function clamp(val, low, high)
+	if val < low then return low end
+	if val > high then return high end
+	return val
 end
 
 local function loadImage(url, name)
@@ -236,8 +311,9 @@ end
 --// UPDATE PROGRESS (use savedTime when not playing so UI shows correct paused position)
 RunService.RenderStepped:Connect(function()
 	local displayTime = (sound.IsPlaying and sound.TimePosition) or savedTime
-	if sound.TimeLength > 0 then
-		barFill.Size = UDim2.new(math.clamp((displayTime / sound.TimeLength), 0, 1),0,1,0)
+	if (sound.TimeLength or 0) > 0 then
+		local pct = clamp(displayTime / sound.TimeLength, 0, 1)
+		barFill.Size = UDim2.new(pct,0,1,0)
 		timeLeft.Text = formatTime(displayTime)
 		timeRight.Text = formatTime(sound.TimeLength)
 	else
@@ -274,7 +350,8 @@ end)
 
 --// SEEK BUTTONS: update TimePosition and savedTime appropriately
 back.MouseButton1Click:Connect(function()
-	local newPos = math.max(0, (sound.IsPlaying and sound.TimePosition or savedTime) - 5)
+	local current = (sound.IsPlaying and sound.TimePosition) or savedTime
+	local newPos = math.max(0, current - 5)
 	-- set playback position
 	sound.TimePosition = newPos
 	-- update savedTime so resume will follow the new position if paused
@@ -284,7 +361,7 @@ end)
 forward.MouseButton1Click:Connect(function()
 	local maxLen = sound.TimeLength or 0
 	local current = (sound.IsPlaying and sound.TimePosition) or savedTime
-	local newPos = math.min(maxLen > 0 and maxLen or math.huge, current + 5)
+	local newPos = math.min((maxLen > 0 and maxLen) or math.huge, current + 5)
 	sound.TimePosition = newPos
 	savedTime = newPos
 end)
@@ -299,7 +376,7 @@ end)
 loopBtn.MouseButton1Click:Connect(function()
 	isLooped = not isLooped
 	-- update display text
-	loopBtn.Text = isLooped and "loop:✔️" or "loop:✖️"
+	loopBtn.Text = isLooped and "Lặp Lại:✔️" or "Lặp Lại:✖️"
 	-- apply to sound
 	sound.Looped = isLooped
 end)
@@ -377,7 +454,7 @@ local function CreateSound(data)
 	local btn = Instance.new("TextButton", card)
 	btn.Size = UDim2.fromOffset(120,30)
 	btn.Position = UDim2.fromOffset(10, name.Position.Y.Offset + name.Size.Y.Offset + 6)
-	btn.Text = "▶️ Play"
+	btn.Text = "▶️ Phát"
 	btn.Font = Enum.Font.GothamBold
 	btn.TextSize = 13
 	btn.BackgroundColor3 = Color3.fromRGB(80,80,80)
@@ -408,13 +485,19 @@ local function CreateSound(data)
 		sound:Play()
 
 		play.Text = "⏸️"
-		title.Text = "Now Playing: "..data.SoundName
+		title.Text = "Đang Phát: "..data.SoundName
 	end)
 end
 
 --// DEMO
 CreateSound({
 	SoundName = "Eclipser",
-	SoundImage = "https://raw.githubusercontent.com/Altis-DEV/Sound/main/eclipser.jpg",
-	SoundLink = "https://github.com/Altis-DEV/Sound/raw/refs/heads/main/ECLIPSER-30s.mp3"
+	SoundImage = "https://raw.githubusercontent.com/Altis-DEV/file/main/eclipser.jpg",
+	SoundLink = "https://github.com/Altis-DEV/file/raw/refs/heads/main/ECLIPSER-30s.mp3"
+})
+
+CreateSound({
+	SoundName = "No Batidao",
+	SoundImage = "https://raw.githubusercontent.com/Altis-DEV/file/main/Nobatidao.jpg",
+	SoundLink = "https://github.com/Altis-DEV/file/raw/refs/heads/main/NoBatidao.mp3"
 })
