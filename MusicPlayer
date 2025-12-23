@@ -1,4 +1,4 @@
--- FULL MUSIC PLAYER (keeps all original features + loop toggle + UIScale = 1 + top bar with copy buttons)
+-- FULL MUSIC PLAYER (keeps all original features + loop toggle + UIScale = 1 + top bar with copy buttons + caching)
 --// SERVICES
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -9,7 +9,130 @@ local LocalPlayer = Players.LocalPlayer
 --// EXECUTOR API
 local req = request or http_request or syn.request
 local getasset = getsynasset or getcustomasset
+local writefile = writefile
+local isfile = isfile
+local isfolder = isfolder
+local makefolder = makefolder
+local readfile = readfile
 assert(req and getasset and writefile, "Executor missing request / asset / writefile")
+
+--// CACHE SETUP
+local CACHE_FOLDER = "musicplayer_cache"
+
+-- safe helpers for folders/files (works across many executors)
+local function ensureFolder(path)
+	if makefolder and isfolder then
+		if not isfolder(path) then
+			pcall(function() makefolder(path) end)
+		end
+	else
+		-- if executor doesn't provide folder APIs, we'll still use writefile with filenames (no nested folders)
+		-- nothing to do
+	end
+end
+
+local function fileExists(path)
+	if isfile then
+		return isfile(path)
+	end
+	-- fallback: try readfile in pcall
+	local ok = pcall(function() readfile(path) end)
+	return ok
+end
+
+ensureFolder(CACHE_FOLDER)
+
+-- helper to sanitize filename
+local function sanitize(name)
+	name = tostring(name or ""):gsub("%s+", "_")
+	-- remove uncommon path chars
+	name = name:gsub("[^%w%-%_%.]", "")
+	if name == "" then name = "file" end
+	return name
+end
+
+-- cached image loader: returns an asset string for ImageLabel
+local function cachedLoadImage(url, name)
+	if not url then return "" end
+	local safeName = sanitize(name)
+	local filename = safeName .. ".png"
+	local path = filename
+	-- if makefolder available, prefix folder
+	if isfolder then
+		path = CACHE_FOLDER .. "/" .. filename
+	end
+
+	-- if exists, return immediately
+	if fileExists(path) then
+		local ok, res = pcall(function() return getasset(path) end)
+		if ok and res then return res end
+		-- if getasset fails, fallthrough to re-download
+	end
+
+	-- download
+	local ok, res = pcall(function() return req({Url = url, Method = "GET"}) end)
+	if not ok or not res or not res.Body then
+		return ""
+	end
+
+	-- write file
+	local success, err = pcall(function() writefile(path, res.Body) end)
+	if not success then
+		-- try writing to filename without folder
+		pcall(function() writefile(filename, res.Body) end)
+		local ok2, res2 = pcall(function() return getasset(filename) end)
+		if ok2 and res2 then return res2 end
+		return ""
+	end
+
+	-- return asset id
+	local ok2, asset = pcall(function() return getasset(path) end)
+	if ok2 and asset then return asset end
+	-- fallback to filename
+	local ok3, asset3 = pcall(function() return getasset(filename) end)
+	if ok3 and asset3 then return asset3 end
+	return ""
+end
+
+-- cached sound loader: returns an asset string usable for Sound.SoundId
+local function cachedLoadSound(url, name)
+	if not url then return nil end
+	local safeName = sanitize(name)
+	local filename = safeName .. ".mp3"
+	local path = filename
+	if isfolder then
+		path = CACHE_FOLDER .. "/" .. filename
+	end
+
+	-- if exists, return immediately
+	if fileExists(path) then
+		local ok, res = pcall(function() return getasset(path) end)
+		if ok and res then return res end
+	end
+
+	-- download
+	local ok, res = pcall(function() return req({Url = url, Method = "GET"}) end)
+	if not ok or not res or not res.Body then
+		return nil
+	end
+
+	-- write file
+	local success = pcall(function() writefile(path, res.Body) end)
+	if not success then
+		-- try writing to filename without folder
+		pcall(function() writefile(filename, res.Body) end)
+		local ok2, asset2 = pcall(function() return getasset(filename) end)
+		if ok2 and asset2 then return asset2 end
+		return nil
+	end
+
+	-- return asset id
+	local ok2, asset = pcall(function() return getasset(path) end)
+	if ok2 and asset then return asset end
+	local ok3, asset3 = pcall(function() return getasset(filename) end)
+	if ok3 and asset3 then return asset3 end
+	return nil
+end
 
 --// GUI ROOT
 local gui = Instance.new("ScreenGui")
@@ -62,7 +185,7 @@ local function makeCopyButton(parent, posOffsetX, textLabel, copyText)
 	btn.TextColor3 = Color3.new(1,1,1)
 	btn.AutoButtonColor = true
 
-local fb = Instance.new("TextLabel", parent)
+	local fb = Instance.new("TextLabel", parent)
 	fb.Size = UDim2.fromOffset(80, 20)
 	fb.Position = UDim2.new(1, posOffsetX - 130, 0, 8)
 	fb.AnchorPoint = Vector2.new(1,0)
@@ -280,16 +403,13 @@ local function clamp(val, low, high)
 	return val
 end
 
+-- use cached loaders defined earlier
 local function loadImage(url, name)
-	local success, res = pcall(function()
-		return req({Url = url, Method = "GET"})
-	end)
-	if not success or not res or not res.Body then
-		return "" -- fallback empty image
-	end
-	local file = name..".png"
-	writefile(file, res.Body)
-	return getasset(file)
+	return cachedLoadImage(url, name)
+end
+
+local function loadSound(url, name)
+	return cachedLoadSound(url, name)
 end
 
 --// WEBHOOK
@@ -469,23 +589,36 @@ local function CreateSound(data)
 	card.Size = UDim2.new(1,-10,0, btn.Position.Y.Offset + btn.Size.Y.Offset + 15)
 
 	btn.MouseButton1Click:Connect(function()
-		-- download and load audio file
-		local res = req({Url = data.SoundLink, Method = "GET"})
-		local file = data.SoundName:gsub("%s+","_")..".mp3"
-		writefile(file, res.Body)
+		-- cached download and load audio file
+		local assetId = loadSound(data.SoundLink, data.SoundName)
+		if not assetId then
+			-- fallback: try direct download like before
+			local ok, res = pcall(function() return req({Url = data.SoundLink, Method = "GET"}) end)
+			if ok and res and res.Body then
+				local file = data.SoundName:gsub("%s+","_")..".mp3"
+				pcall(function() writefile(file, res.Body) end)
+				local ok2, a2 = pcall(function() return getasset(file) end)
+				if ok2 and a2 then assetId = a2 end
+			end
+		end
 
-		-- stop current sound and reset state so new song ALWAYS starts from 0
-		sound:Stop()
-		isPaused = false
-		savedTime = 0
+		if assetId then
+			-- stop current sound and reset state so new song ALWAYS starts from 0
+			sound:Stop()
+			isPaused = false
+			savedTime = 0
 
-		sound.SoundId = getasset(file)
-		sound.TimePosition = 0
-		sound.Looped = isLooped -- apply loop setting to newly loaded sound
-		sound:Play()
+			sound.SoundId = assetId
+			sound.TimePosition = 0
+			sound.Looped = isLooped -- apply loop setting to newly loaded sound
+			sound:Play()
 
-		play.Text = "⏸️"
-		title.Text = "Đang Phát: "..data.SoundName
+			play.Text = "⏸️"
+			title.Text = "Đang Phát: "..data.SoundName
+		else
+			-- failed to load sound; warn (non fatal)
+			warn("Failed to load sound:", data.SoundName, data.SoundLink)
+		end
 	end)
 end
 
@@ -500,4 +633,16 @@ CreateSound({
 	SoundName = "No Batidao",
 	SoundImage = "https://raw.githubusercontent.com/Altis-DEV/file/refs/heads/main/NoBatidao.jpg",
 	SoundLink = "https://github.com/Altis-DEV/file/raw/refs/heads/main/NoBatidao.mp3"
+})
+
+CreateSound({
+	SoundName = "Hazy Moon Jumpstyle",
+	SoundImage = "https://raw.githubusercontent.com/Altis-DEV/file/refs/heads/main/HazyMoonJumpstyle.jpg",
+	SoundLink = "https://github.com/Altis-DEV/file/raw/refs/heads/main/HazyMoonJumpstyle.mp3"
+})
+
+CreateSound({
+	SoundName = "Bad Apple",
+	SoundImage = "https://raw.githubusercontent.com/Altis-DEV/file/refs/heads/main/BadApple.jpg",
+	SoundLink = "https://github.com/Altis-DEV/file/raw/refs/heads/main/BadApple.mp3"
 })
