@@ -630,12 +630,6 @@ CreateSound({
 })
 
 CreateSound({
-	SoundName = "No Batidao",
-	SoundImage = "https://raw.githubusercontent.com/Altis-DEV/file/refs/heads/main/NoBatidao.jpg",
-	SoundLink = "https://github.com/Altis-DEV/file/raw/refs/heads/main/NoBatidao.mp3"
-})
-
-CreateSound({
 	SoundName = "Hazy Moon Jumpstyle",
 	SoundImage = "https://raw.githubusercontent.com/Altis-DEV/file/refs/heads/main/HazyMoonJumpstyle.jpg",
 	SoundLink = "https://github.com/Altis-DEV/file/raw/refs/heads/main/HazyMoonJumpstyle.mp3"
@@ -645,4 +639,22 @@ CreateSound({
 	SoundName = "Bad Apple",
 	SoundImage = "https://raw.githubusercontent.com/Altis-DEV/file/refs/heads/main/BadApple.jpg",
 	SoundLink = "https://github.com/Altis-DEV/file/raw/refs/heads/main/BadApple.mp3"
+})
+
+CreateSound({
+	SoundName = "Lua Na Praca",
+	SoundImage = "https://raw.githubusercontent.com/Altis-DEV/file/refs/heads/main/LuaNaPraca.jpg",
+	SoundLink = "https://github.com/Altis-DEV/file/raw/refs/heads/main/LuaNaPraca.mp3"
+})
+
+CreateSound({
+	SoundName = "No Batidao",
+	SoundImage = "https://raw.githubusercontent.com/Altis-DEV/file/refs/heads/main/NoBatidao.jpg",
+	SoundLink = "https://github.com/Altis-DEV/file/raw/refs/heads/main/NoBatidao.mp3"
+})
+
+CreateSound({
+	SoundName = "Montagem Supersonic",
+	SoundImage = "https://raw.githubusercontent.com/Altis-DEV/file/refs/heads/main/MontagemSupersonic.jpg",
+	SoundLink = "https://github.com/Altis-DEV/file/raw/refs/heads/main/MontagemSupersonic.mp3"
 })
