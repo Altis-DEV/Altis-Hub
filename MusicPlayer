@@ -658,3 +658,21 @@ CreateSound({
 	SoundImage = "https://raw.githubusercontent.com/Altis-DEV/file/refs/heads/main/MontagemSupersonic.jpg",
 	SoundLink = "https://github.com/Altis-DEV/file/raw/refs/heads/main/MontagemSupersonic.mp3"
 })
+
+CreateSound({
+	SoundName = "Montagem Xanada",
+	SoundImage = "https://raw.githubusercontent.com/Altis-DEV/file/refs/heads/main/MontagemXanada.jpg",
+	SoundLink = "https://github.com/Altis-DEV/file/raw/refs/heads/main/MontagemXanada.mp3"
+})
+
+CreateSound({
+	SoundName = "Montagem Perigosa",
+	SoundImage = "https://raw.githubusercontent.com/Altis-DEV/file/refs/heads/main/MontagemPerigosa.jpg",
+	SoundLink = "https://github.com/Altis-DEV/file/raw/refs/heads/main/MontagemPerigosa.mp3"
+})
+
+CreateSound({
+	SoundName = "Heavenly Jumpstyle",
+	SoundImage = "https://raw.githubusercontent.com/Altis-DEV/file/refs/heads/main/HeavenlyJumpstyle.jpg",
+	SoundLink = "https://github.com/Altis-DEV/file/raw/refs/heads/main/HeavenlyJumpstyle.mp3"
+})
