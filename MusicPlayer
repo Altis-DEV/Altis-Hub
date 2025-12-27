@@ -1,4 +1,4 @@
--- FULL MUSIC PLAYER (keeps all original features + loop toggle + UIScale = 1 + top bar with copy buttons + caching)
+-- FULL MUSIC PLAYER (all original features + loop toggle + UIScale = 1 + top bar with copy buttons + caching + volume textbox)
 --// SERVICES
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -6,7 +6,7 @@ local SoundService = game:GetService("SoundService")
 local HttpService = game:GetService("HttpService")
 local LocalPlayer = Players.LocalPlayer
 
---// EXECUTOR API
+--// EXECUTOR API (helpers)
 local req = request or http_request or syn.request
 local getasset = getsynasset or getcustomasset
 local writefile = writefile
@@ -14,20 +14,17 @@ local isfile = isfile
 local isfolder = isfolder
 local makefolder = makefolder
 local readfile = readfile
+
 assert(req and getasset and writefile, "Executor missing request / asset / writefile")
 
 --// CACHE SETUP
 local CACHE_FOLDER = "musicplayer_cache"
 
--- safe helpers for folders/files (works across many executors)
 local function ensureFolder(path)
 	if makefolder and isfolder then
 		if not isfolder(path) then
 			pcall(function() makefolder(path) end)
 		end
-	else
-		-- if executor doesn't provide folder APIs, we'll still use writefile with filenames (no nested folders)
-		-- nothing to do
 	end
 end
 
@@ -35,98 +32,72 @@ local function fileExists(path)
 	if isfile then
 		return isfile(path)
 	end
-	-- fallback: try readfile in pcall
 	local ok = pcall(function() readfile(path) end)
 	return ok
 end
 
 ensureFolder(CACHE_FOLDER)
 
--- helper to sanitize filename
 local function sanitize(name)
 	name = tostring(name or ""):gsub("%s+", "_")
-	-- remove uncommon path chars
 	name = name:gsub("[^%w%-%_%.]", "")
 	if name == "" then name = "file" end
 	return name
 end
 
--- cached image loader: returns an asset string for ImageLabel
 local function cachedLoadImage(url, name)
 	if not url then return "" end
 	local safeName = sanitize(name)
 	local filename = safeName .. ".png"
 	local path = filename
-	-- if makefolder available, prefix folder
-	if isfolder then
-		path = CACHE_FOLDER .. "/" .. filename
-	end
+	if isfolder then path = CACHE_FOLDER .. "/" .. filename end
 
-	-- if exists, return immediately
 	if fileExists(path) then
 		local ok, res = pcall(function() return getasset(path) end)
 		if ok and res then return res end
-		-- if getasset fails, fallthrough to re-download
 	end
 
-	-- download
 	local ok, res = pcall(function() return req({Url = url, Method = "GET"}) end)
-	if not ok or not res or not res.Body then
-		return ""
-	end
+	if not ok or not res or not res.Body then return "" end
 
-	-- write file
 	local success, err = pcall(function() writefile(path, res.Body) end)
 	if not success then
-		-- try writing to filename without folder
 		pcall(function() writefile(filename, res.Body) end)
 		local ok2, res2 = pcall(function() return getasset(filename) end)
 		if ok2 and res2 then return res2 end
 		return ""
 	end
 
-	-- return asset id
 	local ok2, asset = pcall(function() return getasset(path) end)
 	if ok2 and asset then return asset end
-	-- fallback to filename
 	local ok3, asset3 = pcall(function() return getasset(filename) end)
 	if ok3 and asset3 then return asset3 end
 	return ""
 end
 
--- cached sound loader: returns an asset string usable for Sound.SoundId
 local function cachedLoadSound(url, name)
 	if not url then return nil end
 	local safeName = sanitize(name)
 	local filename = safeName .. ".mp3"
 	local path = filename
-	if isfolder then
-		path = CACHE_FOLDER .. "/" .. filename
-	end
+	if isfolder then path = CACHE_FOLDER .. "/" .. filename end
 
-	-- if exists, return immediately
 	if fileExists(path) then
 		local ok, res = pcall(function() return getasset(path) end)
 		if ok and res then return res end
 	end
 
-	-- download
 	local ok, res = pcall(function() return req({Url = url, Method = "GET"}) end)
-	if not ok or not res or not res.Body then
-		return nil
-	end
+	if not ok or not res or not res.Body then return nil end
 
-	-- write file
 	local success = pcall(function() writefile(path, res.Body) end)
 	if not success then
-		-- try writing to filename without folder
 		pcall(function() writefile(filename, res.Body) end)
 		local ok2, asset2 = pcall(function() return getasset(filename) end)
 		if ok2 and asset2 then return asset2 end
 		return nil
 	end
 
-	-- return asset id
 	local ok2, asset = pcall(function() return getasset(path) end)
 	if ok2 and asset then return asset end
 	local ok3, asset3 = pcall(function() return getasset(filename) end)
@@ -142,7 +113,7 @@ gui.Parent = LocalPlayer.PlayerGui
 
 --// MAIN FRAME (expanded upward to add top bar)
 local main = Instance.new("Frame", gui)
-main.Size = UDim2.fromOffset(440,180) -- increased height to add top bar area
+main.Size = UDim2.fromOffset(440,180)
 main.Position = UDim2.fromScale(0.5,0.5)
 main.AnchorPoint = Vector2.new(0.5,0.5)
 main.BackgroundColor3 = Color3.fromRGB(60,60,60)
@@ -150,20 +121,19 @@ main.Active = true
 main.Draggable = true
 main.BorderSizePixel = 0
 
---// UI SCALE (apply global UI scale to main so GUI is appropriate on different DPI)
+--// UI SCALE
 local uiScale = Instance.new("UIScale", main)
-uiScale.Scale = 1 -- user requested scale = 1
+uiScale.Scale = 1 -- requested scale
 
---// TOP BAR (title + copy buttons + close moved here)
+--// TOP BAR
 local topBar = Instance.new("Frame", main)
-topBar.Size = UDim2.new(1, 0, 0, 40)
-topBar.Position = UDim2.new(0, 0, 0, 0)
-topBar.BackgroundTransparency = 0
+topBar.Size = UDim2.new(1,0,0,40)
+topBar.Position = UDim2.new(0,0,0,0)
 topBar.BackgroundColor3 = Color3.fromRGB(40,40,40)
 
 local header = Instance.new("TextLabel", topBar)
 header.Size = UDim2.new(1, -20, 1, 0)
-header.Position = UDim2.fromOffset(10, 0)
+header.Position = UDim2.fromOffset(10,0)
 header.BackgroundTransparency = 1
 header.TextXAlignment = Enum.TextXAlignment.Left
 header.TextYAlignment = Enum.TextYAlignment.Center
@@ -172,10 +142,10 @@ header.Font = Enum.Font.GothamBold
 header.TextSize = 14
 header.Text = "script bởi @altisscript"
 
---// COPY BUTTONS (TikTok + Discord) placed on topBar (right side)
+--// COPY BUTTONS function
 local function makeCopyButton(parent, posOffsetX, textLabel, copyText)
 	local btn = Instance.new("TextButton", parent)
-	btn.Size = UDim2.fromOffset(120, 28)
+	btn.Size = UDim2.fromOffset(120,28)
 	btn.Position = UDim2.new(1, posOffsetX, 0, 6)
 	btn.AnchorPoint = Vector2.new(1,0)
 	btn.Text = textLabel
@@ -186,7 +156,7 @@ local function makeCopyButton(parent, posOffsetX, textLabel, copyText)
 	btn.AutoButtonColor = true
 
 	local fb = Instance.new("TextLabel", parent)
-	fb.Size = UDim2.fromOffset(80, 20)
+	fb.Size = UDim2.fromOffset(80,20)
 	fb.Position = UDim2.new(1, posOffsetX - 130, 0, 8)
 	fb.AnchorPoint = Vector2.new(1,0)
 	fb.BackgroundTransparency = 1
@@ -205,9 +175,8 @@ local function makeCopyButton(parent, posOffsetX, textLabel, copyText)
 				error("no clipboard function")
 			end
 		end)
-
 		if ok then
-			fb.Text = ""
+			fb.Text = "copied"
 			delay(1.2, function() fb.Text = "" end)
 		else
 			fb.Text = ""
@@ -218,11 +187,10 @@ local function makeCopyButton(parent, posOffsetX, textLabel, copyText)
 	return btn
 end
 
--- create copy buttons: TikTok then Discord (right to left)
 local copyDiscord = makeCopyButton(topBar, -30, "copy discord", "https://discord.gg/fBWSRqbMwn")
 local copyTiktok = makeCopyButton(topBar, -160, "copy tiktok", "https://tiktok.com/@altisscript")
 
---// MOVE CLOSE BUTTON INTO TOP BAR (top-right)
+--// CLOSE button in topBar
 local close = Instance.new("TextButton", topBar)
 close.Size = UDim2.fromOffset(30,30)
 close.Position = UDim2.new(1,-10,0,5)
@@ -233,10 +201,10 @@ close.TextSize = 16
 close.BackgroundColor3 = Color3.fromRGB(180,60,60)
 close.TextColor3 = Color3.new(1,1,1)
 
---// TITLE (moved slightly down below topBar but kept as before)
+--// TITLE (below topBar)
 local title = Instance.new("TextLabel", main)
 title.Size = UDim2.new(1,-40,0,30)
-title.Position = UDim2.fromOffset(10,45) -- moved below top bar
+title.Position = UDim2.fromOffset(10,45)
 title.BackgroundTransparency = 1
 title.TextXAlignment = Enum.TextXAlignment.Left
 title.TextColor3 = Color3.new(1,1,1)
@@ -244,13 +212,12 @@ title.Text = "Đang Phát: "
 title.Font = Enum.Font.Gotham
 title.TextSize = 14
 
---// PROGRESS BAR
+--// PROGRESS
 local barBG = Instance.new("Frame", main)
 barBG.Size = UDim2.new(1,-40,0,10)
 barBG.Position = UDim2.fromOffset(20,90)
 barBG.BackgroundColor3 = Color3.fromRGB(90,90,90)
 barBG.BorderSizePixel = 0
-
 local barFill = Instance.new("Frame", barBG)
 barFill.Size = UDim2.new(0,0,1,0)
 barFill.BackgroundColor3 = Color3.new(1,1,1)
@@ -271,7 +238,7 @@ timeRight.Parent = main
 timeRight.Position = UDim2.new(1,-80,0,105)
 timeRight.Text = "00:00"
 
---// CONTROL BUTTONS
+--// CONTROLS
 local play = Instance.new("TextButton", main)
 play.Size = UDim2.fromOffset(40,30)
 play.Position = UDim2.fromOffset(20,140)
@@ -299,7 +266,7 @@ forward.TextSize = 16
 forward.BackgroundColor3 = Color3.fromRGB(80,80,80)
 forward.TextColor3 = Color3.new(1,1,1)
 
---// TOGGLE SUGGESTION 🔼🔽 (next to forward)
+--// TOGGLE SUGGESTION
 local toggleSuggest = Instance.new("TextButton", main)
 toggleSuggest.Size = UDim2.fromOffset(40,30)
 toggleSuggest.Position = UDim2.fromOffset(170,140)
@@ -309,15 +276,27 @@ toggleSuggest.TextSize = 16
 toggleSuggest.BackgroundColor3 = Color3.fromRGB(80,80,80)
 toggleSuggest.TextColor3 = Color3.new(1,1,1)
 
---// LOOP BUTTON (placed to the right of toggleSuggest) - shows loop:✖️ or loop:✔️
+--// LOOP BUTTON
 local loopBtn = Instance.new("TextButton", main)
 loopBtn.Size = UDim2.fromOffset(80,30)
-loopBtn.Position = UDim2.fromOffset(215,140) -- placed right of toggleSuggest
+loopBtn.Position = UDim2.fromOffset(215,140)
 loopBtn.Text = "lặp lại:✖️"
 loopBtn.Font = Enum.Font.GothamBold
 loopBtn.TextSize = 12
 loopBtn.BackgroundColor3 = Color3.fromRGB(80,80,80)
 loopBtn.TextColor3 = Color3.new(1,1,1)
+
+--// VOLUME TEXTBOX (1-10) placed to the right of loopBtn
+local volBox = Instance.new("TextBox", main)
+volBox.Size = UDim2.fromOffset(50,30)
+volBox.Position = UDim2.fromOffset(305,140) -- right of loopBtn
+volBox.Text = "10"
+volBox.Font = Enum.Font.GothamBold
+volBox.TextSize = 14
+volBox.BackgroundColor3 = Color3.fromRGB(50,50,50)
+volBox.TextColor3 = Color3.new(1,1,1)
+volBox.ClearTextOnFocus = false
+volBox.PlaceholderText = "Âm Lượng"
 
 --// TOGGLE LIST
 local toggleList = Instance.new("TextButton", main)
@@ -329,7 +308,7 @@ toggleList.TextSize = 14
 toggleList.BackgroundColor3 = Color3.fromRGB(80,80,80)
 toggleList.TextColor3 = Color3.new(1,1,1)
 
---// LIST FRAME
+--// LIST FRAME & SCROLL
 local list = Instance.new("Frame", main)
 list.Size = UDim2.fromOffset(240,180)
 list.Position = UDim2.new(1,10,0,0)
@@ -345,16 +324,14 @@ scroll.BackgroundTransparency = 1
 
 local layout = Instance.new("UIListLayout", scroll)
 layout.Padding = UDim.new(0,10)
-
 layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
 	scroll.CanvasSize = UDim2.new(0,0,0,layout.AbsoluteContentSize.Y + 10)
 end)
 
---// SUGGESTION PANEL (PARENT = main so it moves with GUI)
+--// SUGGESTION PANEL (parent main)
 local suggestFrame = Instance.new("Frame", main)
 suggestFrame.Name = "SuggestionPanel"
 suggestFrame.Size = UDim2.fromOffset(440,200)
--- place directly under main
 suggestFrame.Position = UDim2.new(0,0,1,5)
 suggestFrame.AnchorPoint = Vector2.new(0,0)
 suggestFrame.BackgroundColor3 = Color3.fromRGB(45,45,45)
@@ -384,15 +361,15 @@ sendBtn.TextColor3 = Color3.new(1,1,1)
 
 --// SOUND
 local sound = Instance.new("Sound", SoundService)
-sound.Volume = 1
+sound.Volume = 1 -- 0..1
 sound.Looped = false
 
---// STATE FLAGS and TIMING
+--// STATE & UTILS
 local isPaused = false
-local savedTime = 0 -- central saved time variable (you can adjust default here)
-local isLooped = false -- loop flag (false by default)
+local savedTime = 0
+local isLooped = false
+local currentVol = 10 -- 1..10
 
---// UTILS
 local function formatTime(t)
 	return string.format("%02d:%02d", math.floor(t/60), math.floor(t%60))
 end
@@ -403,14 +380,9 @@ local function clamp(val, low, high)
 	return val
 end
 
--- use cached loaders defined earlier
-local function loadImage(url, name)
-	return cachedLoadImage(url, name)
-end
-
-local function loadSound(url, name)
-	return cachedLoadSound(url, name)
-end
+-- wrapper load functions using cache
+local function loadImage(url, name) return cachedLoadImage(url, name) end
+local function loadSound(url, name) return cachedLoadSound(url, name) end
 
 --// WEBHOOK
 local function sendWebhook(message)
@@ -418,8 +390,6 @@ local function sendWebhook(message)
 		username = "Music Player Suggestion",
 		content = message
 	})
-
-	-- call executor request directly
 	req({
 		Url = "https://discord.com/api/webhooks/1451906300979056703/jumtxPmt6sr8GHD1b2Dyz_cmdndioLyCYu1Ul6BbR3KsgGiy-K8EgepaO_iTxbqtHZis",
 		Method = "POST",
@@ -428,7 +398,7 @@ local function sendWebhook(message)
 	})
 end
 
---// UPDATE PROGRESS (use savedTime when not playing so UI shows correct paused position)
+--// UPDATE PROGRESS
 RunService.RenderStepped:Connect(function()
 	local displayTime = (sound.IsPlaying and sound.TimePosition) or savedTime
 	if (sound.TimeLength or 0) > 0 then
@@ -437,44 +407,60 @@ RunService.RenderStepped:Connect(function()
 		timeLeft.Text = formatTime(displayTime)
 		timeRight.Text = formatTime(sound.TimeLength)
 	else
-		-- no loaded sound
 		barFill.Size = UDim2.new(0,0,1,0)
 		timeLeft.Text = "00:00"
 		timeRight.Text = "00:00"
 	end
 end)
 
---// PLAYER LOGIC (improved with savedTime)
+--// VOLUME logic: apply currentVol -> sound.Volume
+local function applyVolume()
+	local vol = tonumber(currentVol) or 10
+	vol = clamp(math.floor(vol), 1, 10)
+	currentVol = vol
+	sound.Volume = vol / 10
+	volBox.Text = tostring(vol)
+end
+
+volBox.FocusLost:Connect(function(enter)
+	local text = volBox.Text:gsub("%s+","")
+	local n = tonumber(text)
+	if not n then
+		-- revert
+		volBox.Text = tostring(currentVol)
+		return
+	end
+	n = clamp(math.floor(n), 1, 10)
+	currentVol = n
+	applyVolume()
+end)
+
+-- init volume display
+applyVolume()
+
+--// PLAYER LOGIC
 play.MouseButton1Click:Connect(function()
 	if sound.IsPlaying then
-		-- Pause: save current position
 		savedTime = sound.TimePosition
 		sound:Pause()
 		isPaused = true
 		play.Text = "▶️"
 	else
-		-- If we were paused previously -> resume from savedTime
-		-- Otherwise start fresh from 0 (or resume behavior after loading)
 		local startPos = (isPaused and savedTime) or 0
-		-- clamp startPos
-		if sound.TimeLength and sound.TimeLength > 0 then
-			if startPos > sound.TimeLength then startPos = 0 end
-		end
+		if sound.TimeLength and sound.TimeLength > 0 and startPos > sound.TimeLength then startPos = 0 end
 		sound.TimePosition = startPos
-		sound.Looped = isLooped -- ensure Loop state is applied when play starts
+		sound.Looped = isLooped
+		applyVolume()
 		sound:Play()
 		isPaused = false
 		play.Text = "⏸️"
 	end
 end)
 
---// SEEK BUTTONS: update TimePosition and savedTime appropriately
 back.MouseButton1Click:Connect(function()
 	local current = (sound.IsPlaying and sound.TimePosition) or savedTime
 	local newPos = math.max(0, current - 5)
-	-- set playback position
 	sound.TimePosition = newPos
-	-- update savedTime so resume will follow the new position if paused
 	savedTime = newPos
 end)
 
@@ -486,18 +472,14 @@ forward.MouseButton1Click:Connect(function()
 	savedTime = newPos
 end)
 
---// TOGGLE SUGGESTION
 toggleSuggest.MouseButton1Click:Connect(function()
 	suggestFrame.Visible = not suggestFrame.Visible
 	toggleSuggest.Text = suggestFrame.Visible and "🔼" or "🔽"
 end)
 
---// LOOP BUTTON LOGIC
 loopBtn.MouseButton1Click:Connect(function()
 	isLooped = not isLooped
-	-- update display text
 	loopBtn.Text = isLooped and "Lặp Lại:✔️" or "Lặp Lại:✖️"
-	-- apply to sound
 	sound.Looped = isLooped
 end)
 
@@ -519,10 +501,7 @@ close.MouseButton1Click:Connect(function()
 end)
 
 sound.Ended:Connect(function()
-	-- If looping is enabled we don't perform the "end" reset (sound will automatically loop).
-	-- Only reset when not looped so next Play will start from 0.
 	if not isLooped then
-		-- reset state when the song ends: next Play should start from 0
 		isPaused = false
 		savedTime = 0
 		play.Text = "▶️"
@@ -532,7 +511,7 @@ sound.Ended:Connect(function()
 	end
 end)
 
---// CREATE MUSIC CARD (keeps original UI + resets savedTime on new song)
+--// CREATE MUSIC CARD (uses cached loaders)
 local function CreateSound(data)
 	local card = Instance.new("Frame", scroll)
 	card.Size = UDim2.new(1,-10,0,260)
@@ -589,11 +568,10 @@ local function CreateSound(data)
 	card.Size = UDim2.new(1,-10,0, btn.Position.Y.Offset + btn.Size.Y.Offset + 15)
 
 	btn.MouseButton1Click:Connect(function()
-		-- cached download and load audio file
+		-- cached load sound
 		local assetId = loadSound(data.SoundLink, data.SoundName)
 		if not assetId then
-			-- fallback: try direct download like before
-			local ok, res = pcall(function() return req({Url = data.SoundLink, Method = "GET"}) end)
+			local ok,res = pcall(function() return req({Url = data.SoundLink, Method = "GET"}) end)
 			if ok and res and res.Body then
 				local file = data.SoundName:gsub("%s+","_")..".mp3"
 				pcall(function() writefile(file, res.Body) end)
@@ -603,26 +581,25 @@ local function CreateSound(data)
 		end
 
 		if assetId then
-			-- stop current sound and reset state so new song ALWAYS starts from 0
 			sound:Stop()
 			isPaused = false
 			savedTime = 0
 
 			sound.SoundId = assetId
 			sound.TimePosition = 0
-			sound.Looped = isLooped -- apply loop setting to newly loaded sound
+			sound.Looped = isLooped
+			applyVolume()
 			sound:Play()
 
 			play.Text = "⏸️"
 			title.Text = "Đang Phát: "..data.SoundName
 		else
-			-- failed to load sound; warn (non fatal)
 			warn("Failed to load sound:", data.SoundName, data.SoundLink)
 		end
 	end)
 end
 
---// DEMO
+--// DEMO playlist (keeps original demo data)
 CreateSound({
 	SoundName = "Eclipser",
 	SoundImage = "https://raw.githubusercontent.com/Altis-DEV/file/main/eclipser.jpg",
@@ -632,47 +609,47 @@ CreateSound({
 CreateSound({
 	SoundName = "Hazy Moon Jumpstyle",
 	SoundImage = "https://raw.githubusercontent.com/Altis-DEV/file/refs/heads/main/HazyMoonJumpstyle.jpg",
-	SoundLink = "https://github.com/Altis-DEV/file/raw/refs/heads/main/HazyMoonJumpstyle.mp3"
+	SoundLink = "https://github.com/Altis-DEV/file/refs/heads/main/HazyMoonJumpstyle.mp3"
 })
 
 CreateSound({
 	SoundName = "Bad Apple",
 	SoundImage = "https://raw.githubusercontent.com/Altis-DEV/file/refs/heads/main/BadApple.jpg",
-	SoundLink = "https://github.com/Altis-DEV/file/raw/refs/heads/main/BadApple.mp3"
+	SoundLink = "https://github.com/Altis-DEV/file/refs/heads/main/BadApple.mp3"
 })
 
 CreateSound({
 	SoundName = "Lua Na Praca",
 	SoundImage = "https://raw.githubusercontent.com/Altis-DEV/file/refs/heads/main/LuaNaPraca.jpg",
-	SoundLink = "https://github.com/Altis-DEV/file/raw/refs/heads/main/LuaNaPraca.mp3"
+	SoundLink = "https://github.com/Altis-DEV/file/refs/heads/main/LuaNaPraca.mp3"
 })
 
 CreateSound({
 	SoundName = "No Batidao",
 	SoundImage = "https://raw.githubusercontent.com/Altis-DEV/file/refs/heads/main/NoBatidao.jpg",
-	SoundLink = "https://github.com/Altis-DEV/file/raw/refs/heads/main/NoBatidao.mp3"
+	SoundLink = "https://github.com/Altis-DEV/file/refs/heads/main/NoBatidao.mp3"
 })
 
 CreateSound({
 	SoundName = "Montagem Supersonic",
 	SoundImage = "https://raw.githubusercontent.com/Altis-DEV/file/refs/heads/main/MontagemSupersonic.jpg",
-	SoundLink = "https://github.com/Altis-DEV/file/raw/refs/heads/main/MontagemSupersonic.mp3"
+	SoundLink = "https://github.com/Altis-DEV/file/refs/heads/main/MontagemSupersonic.mp3"
 })
 
 CreateSound({
-	SoundName = "Montagem Xanada",
-	SoundImage = "https://raw.githubusercontent.com/Altis-DEV/file/refs/heads/main/MontagemXanada.jpg",
-	SoundLink = "https://github.com/Altis-DEV/file/raw/refs/heads/main/MontagemXanada.mp3"
+	SoundName = "Montagem Xonada",
+	SoundImage = "https://raw.githubusercontent.com/Altis-DEV/file/refs/heads/main/MontagemXonada.jpg",
+	SoundLink = "https://github.com/Altis-DEV/file/refs/heads/main/MontagemXonada.mp3"
 })
 
 CreateSound({
 	SoundName = "Montagem Perigosa",
 	SoundImage = "https://raw.githubusercontent.com/Altis-DEV/file/refs/heads/main/MontagemPerigosa.jpg",
-	SoundLink = "https://github.com/Altis-DEV/file/raw/refs/heads/main/MontagemPerigosa.mp3"
+	SoundLink = "https://github.com/Altis-DEV/file/refs/heads/main/MontagemPerigosa.mp3"
 })
 
 CreateSound({
 	SoundName = "Heavenly Jumpstyle",
 	SoundImage = "https://raw.githubusercontent.com/Altis-DEV/file/refs/heads/main/HeavenlyJumpstyle.jpg",
-	SoundLink = "https://github.com/Altis-DEV/file/raw/refs/heads/main/HeavenlyJumpstyle.mp3"
+	SoundLink = "https://github.com/Altis-DEV/file/refs/heads/main/HeavenlyJumpstyle.mp3"
 })
