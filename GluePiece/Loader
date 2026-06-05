@@ -41,7 +41,7 @@ English.MouseButton1Click:Connect(function()
 	Gui:Destroy()
 
 	loadstring(game:HttpGet(
-		"https://raw.githubusercontent.com/YourUser/YourRepo/main/AltisHubEnglish.lua"
+		"https://raw.githubusercontent.com/Altis-DEV/Altis-Hub/refs/heads/main/GluePiece/English"
 	))()
 end)
 
@@ -49,6 +49,6 @@ Vietnamese.MouseButton1Click:Connect(function()
 	Gui:Destroy()
 
 	loadstring(game:HttpGet(
-		"https://raw.githubusercontent.com/YourUser/YourRepo/main/AltisHubVietnamese.lua"
+		"https://raw.githubusercontent.com/Altis-DEV/Altis-Hub/refs/heads/main/GluePiece/Vietnamese"
 	))()
 end)
