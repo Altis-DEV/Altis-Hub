@@ -1,0 +1,785 @@
+local WindUI = loadstring(game:HttpGet(
+    "https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"
+))()
+
+WindUI:AddTheme({
+    Name = "Purple",
+    Accent = Color3.fromHex("#7c3aed"),
+    Background = Color3.fromHex("#1e1b4b"),
+    Outline = Color3.fromHex("#c084fc"),
+    Text = Color3.fromHex("#faf5ff"),
+    Placeholder = Color3.fromHex("#d8b4fe"),
+    Button = Color3.fromHex("#8b5cf6"),
+    Icon = Color3.fromHex("#d8b4fe"),
+})
+
+local Window = WindUI:CreateWindow({
+    Title = "Altis Hub",
+    Author = "Build A Boat For Treasure",
+    Icon = "rbxassetid://95605701610484",
+    Folder = "AltisHub",
+    Size = UDim2.fromOffset(500, 320),
+    Background = "rbxassetid://137021248562867",
+    Resizable = true,
+    AutoScale = true,
+    NewElements = true,
+    ToggleKey = Enum.KeyCode.RightShift,
+    Radius = 18,
+    ElementsRadius = 12,
+
+    OpenButton = {
+        Title = "Open Altis Hub",
+        CornerRadius = UDim.new(1, 0),
+        StrokeThickness = 3,
+        Enabled = true,
+        Draggable = true,
+        OnlyMobile = false,
+        Scale = 1,
+        Color = ColorSequence.new(
+            Color3.fromHex("#30FF6A"),
+            Color3.fromHex("#e7ff2f")
+        ),
+    },
+})
+
+Window:SetIconSize(30)
+WindUI:SetTheme("Purple")
+
+local CoreGui = game:GetService("CoreGui")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+local Players = game:GetService("Players")
+local Stats = game:GetService("Stats")
+
+local LocalPlayer = Players.LocalPlayer
+
+getgenv().TweenFull = false
+getgenv().TweenBlock = false
+getgenv().TweenX2 = false
+getgenv().TeleportFull = false
+getgenv().TeleportBlock = false
+getgenv().TeleportX2 = false
+getgenv().AutoClaimGold = false
+
+local State = {
+    RunToken = 0,
+}
+
+local function ToggleWindow()
+    pcall(function()
+        if Window.Toggle then
+            Window:Toggle()
+        elseif Window.SetVisible then
+            Window:SetVisible(false)
+        elseif Window.Close then
+            Window:Close()
+        elseif Window.Open then
+            Window:Open()
+        end
+    end)
+end
+
+local function CreateFloatingToggle()
+    if getgenv().AltisToggleGui then
+        pcall(function()
+            getgenv().AltisToggleGui:Destroy()
+        end)
+    end
+
+    local toggleGui = Instance.new("ScreenGui")
+    toggleGui.Name = "AltisToggleGui"
+    toggleGui.ResetOnSpawn = false
+    toggleGui.IgnoreGuiInset = true
+    toggleGui.DisplayOrder = 999999
+    toggleGui.Parent = CoreGui
+
+    getgenv().AltisToggleGui = toggleGui
+
+    local toggle = Instance.new("ImageButton")
+    toggle.Name = "AltisToggleButton"
+    toggle.Parent = toggleGui
+    toggle.Size = UDim2.fromOffset(48, 48)
+    toggle.Position = UDim2.new(0, 16, 0.5, -24)
+    toggle.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+    toggle.BorderSizePixel = 0
+    toggle.AutoButtonColor = false
+    toggle.Image = "rbxassetid://95605701610484"
+    toggle.Active = true
+    toggle.Selectable = true
+    toggle.ZIndex = 999999
+
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(1, 0)
+    corner.Parent = toggle
+
+    local stroke = Instance.new("UIStroke")
+    stroke.Color = Color3.fromRGB(255, 255, 255)
+    stroke.Transparency = 0.72
+    stroke.Thickness = 1.2
+    stroke.Parent = toggle
+
+    local dragging = false
+    local dragInput
+    local dragStart
+    local startPos
+
+    local function updateDrag(input)
+        local delta = input.Position - dragStart
+        toggle.Position = UDim2.new(
+            startPos.X.Scale,
+            startPos.X.Offset + delta.X,
+            startPos.Y.Scale,
+            startPos.Y.Offset + delta.Y
+        )
+    end
+
+    toggle.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1
+            or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            dragStart = input.Position
+            startPos = toggle.Position
+
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    dragging = false
+                end
+            end)
+        end
+    end)
+
+    toggle.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement
+            or input.UserInputType == Enum.UserInputType.Touch then
+            dragInput = input
+        end
+    end)
+
+    UserInputService.InputChanged:Connect(function(input)
+        if dragging and input == dragInput then
+            updateDrag(input)
+        end
+    end)
+
+    toggle.Activated:Connect(function()
+        ToggleWindow()
+    end)
+end
+
+CreateFloatingToggle()
+
+local FPSTag = Window:Tag({
+    Title = "FPS: 0",
+    Color = Color3.fromRGB(100, 150, 255),
+})
+
+local frameCount = 0
+local lastUpdate = os.clock()
+
+RunService.RenderStepped:Connect(function()
+    frameCount += 1
+    local now = os.clock()
+
+    if now - lastUpdate >= 1 then
+        local fps = math.floor(frameCount / (now - lastUpdate))
+        FPSTag:SetTitle("FPS: " .. fps)
+
+        if fps >= 50 then
+            FPSTag:SetColor(Color3.fromRGB(0, 255, 0))
+        elseif fps >= 30 then
+            FPSTag:SetColor(Color3.fromRGB(255, 200, 0))
+        else
+            FPSTag:SetColor(Color3.fromRGB(255, 0, 0))
+        end
+
+        frameCount = 0
+        lastUpdate = now
+    end
+end)
+
+local PingTag = Window:Tag({
+    Title = "Ping: 0ms",
+    Color = Color3.fromRGB(100, 200, 255),
+})
+
+task.spawn(function()
+    while task.wait(2) do
+        local pingValue
+
+        pcall(function()
+            local network = Stats:FindFirstChild("Network")
+            if network then
+                local item = network:FindFirstChild("ServerStatsItem")
+                if item then
+                    local dataPing = item:FindFirstChild("Data Ping") or item:FindFirstChild("Ping")
+                    if dataPing then
+                        pingValue = dataPing:GetValue()
+                    end
+                end
+            end
+        end)
+
+        if pingValue then
+            local ping = math.floor(pingValue)
+            PingTag:SetTitle("Ping: " .. ping .. "ms")
+
+            if ping <= 50 then
+                PingTag:SetColor(Color3.fromRGB(0, 255, 0))
+            elseif ping <= 100 then
+                PingTag:SetColor(Color3.fromRGB(255, 200, 0))
+            elseif ping <= 200 then
+                PingTag:SetColor(Color3.fromRGB(255, 150, 0))
+            else
+                PingTag:SetColor(Color3.fromRGB(255, 0, 0))
+            end
+        else
+            PingTag:SetTitle("Ping: N/A")
+            PingTag:SetColor(Color3.fromRGB(150, 150, 150))
+        end
+    end
+end)
+
+local function getCharacter()
+    return LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+end
+
+local function getRootHumanoid()
+    local character = getCharacter()
+    local rootPart = character:FindFirstChild("HumanoidRootPart")
+    local humanoid = character:FindFirstChildOfClass("Humanoid")
+    return character, rootPart, humanoid
+end
+
+local function enableNoClip(flagName)
+    return RunService.Stepped:Connect(function()
+        if getgenv()[flagName] and LocalPlayer.Character then
+            for _, part in ipairs(LocalPlayer.Character:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    part.CanCollide = false
+                end
+            end
+        end
+    end)
+end
+
+local function waitUntil(seconds, flagName)
+    local start = os.clock()
+    while os.clock() - start < seconds do
+        if not getgenv()[flagName] then
+            return false
+        end
+        task.wait()
+    end
+    return true
+end
+
+local function waitForRespawnAndDelay(oldCharacter, flagName)
+    while getgenv()[flagName] and LocalPlayer.Character == oldCharacter do
+        task.wait()
+    end
+
+    if not getgenv()[flagName] then
+        return false
+    end
+
+    task.wait(5)
+    return true
+end
+
+local function runTweenStep(step, flagName, expectedCharacter)
+    if not getgenv()[flagName] then
+        return false
+    end
+
+    local character, rootPart, humanoid = getRootHumanoid()
+    if not character or character ~= expectedCharacter or not rootPart or not humanoid or humanoid.Health <= 0 then
+        return false
+    end
+
+    local antiFall = Instance.new("BodyVelocity")
+    antiFall.Velocity = Vector3.new(0, 0, 0)
+    antiFall.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
+    antiFall.Parent = rootPart
+
+    local distance = (rootPart.Position - step.Position).Magnitude
+    local duration = math.max(distance / 200, 0.05)
+
+    local tween = TweenService:Create(
+        rootPart,
+        TweenInfo.new(duration, Enum.EasingStyle.Linear),
+        { CFrame = CFrame.new(step.Position) }
+    )
+
+    local done = false
+    local conn
+    conn = tween.Completed:Connect(function()
+        done = true
+    end)
+
+    tween:Play()
+
+    while not done do
+        if not getgenv()[flagName] or LocalPlayer.Character ~= expectedCharacter or humanoid.Health <= 0 then
+            tween:Cancel()
+            break
+        end
+        task.wait()
+    end
+
+    if conn then conn:Disconnect() end
+    antiFall:Destroy()
+
+    return getgenv()[flagName] and LocalPlayer.Character == expectedCharacter and humanoid.Health > 0
+end
+
+local function runTeleportStep(step, flagName, expectedCharacter, rootPart)
+    if not getgenv()[flagName] then
+        return false
+    end
+
+    local character = LocalPlayer.Character
+    local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+
+    if not character or character ~= expectedCharacter or not rootPart or not humanoid or humanoid.Health <= 0 then
+        return false
+    end
+
+    rootPart.Velocity = Vector3.new(0, 0, 0)
+    rootPart.CFrame = CFrame.new(step.Position)
+
+    if step.Wait and step.Wait > 0 then
+        if not waitUntil(step.Wait, flagName) then
+            return false
+        end
+    else
+        task.wait(0.05)
+    end
+
+    return getgenv()[flagName] and LocalPlayer.Character == expectedCharacter and humanoid.Health > 0
+end
+
+local function startTweenFarm(flagName, route, resetDelay)
+    State.RunToken += 1
+    local token = State.RunToken
+
+    task.spawn(function()
+        while token == State.RunToken and getgenv()[flagName] do
+            local noclipConn = enableNoClip(flagName)
+
+            local character, _, humanoid = getRootHumanoid()
+            if not character or not humanoid then
+                if noclipConn then noclipConn:Disconnect() end
+                task.wait(0.5)
+                continue
+            end
+
+            local runCharacter = character
+            local aborted = false
+
+            for _, step in ipairs(route) do
+                if token ~= State.RunToken or not getgenv()[flagName] then
+                    aborted = true
+                    break
+                end
+
+                if LocalPlayer.Character ~= runCharacter or humanoid.Health <= 0 then
+                    aborted = true
+                    break
+                end
+
+                if not runTweenStep(step, flagName, runCharacter) then
+                    aborted = true
+                    break
+                end
+            end
+
+            if noclipConn then
+                noclipConn:Disconnect()
+            end
+
+            if token ~= State.RunToken or not getgenv()[flagName] then
+                break
+            end
+
+            if aborted or LocalPlayer.Character ~= runCharacter or humanoid.Health <= 0 then
+                if not waitForRespawnAndDelay(runCharacter, flagName) then
+                    break
+                end
+                continue
+            end
+
+            if resetDelay and resetDelay > 0 then
+                if not waitUntil(resetDelay, flagName) then
+                    break
+                end
+            end
+
+            if humanoid and humanoid.Health > 0 then
+                humanoid.Health = 0
+            end
+
+            if not waitForRespawnAndDelay(runCharacter, flagName) then
+                break
+            end
+        end
+    end)
+end
+
+local function startTeleportFarm(flagName, route, resetDelay)
+    State.RunToken += 1
+    local token = State.RunToken
+
+    task.spawn(function()
+        while token == State.RunToken and getgenv()[flagName] do
+            local noclipConn = enableNoClip(flagName)
+
+            local character, rootPart, humanoid = getRootHumanoid()
+            if not character or not rootPart or not humanoid then
+                if noclipConn then noclipConn:Disconnect() end
+                task.wait(0.5)
+                continue
+            end
+
+            local runCharacter = character
+            local floatForce = Instance.new("BodyVelocity")
+            floatForce.Name = "AltisFloatForce"
+            floatForce.Velocity = Vector3.new(0, 0, 0)
+            floatForce.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
+            floatForce.Parent = rootPart
+
+            local aborted = false
+
+            for _, step in ipairs(route) do
+                if token ~= State.RunToken or not getgenv()[flagName] then
+                    aborted = true
+                    break
+                end
+
+                if LocalPlayer.Character ~= runCharacter or humanoid.Health <= 0 then
+                    aborted = true
+                    break
+                end
+
+                if not runTeleportStep(step, flagName, runCharacter, rootPart) then
+                    aborted = true
+                    break
+                end
+            end
+
+            if noclipConn then
+                noclipConn:Disconnect()
+            end
+
+            if floatForce then
+                floatForce:Destroy()
+            end
+
+            if token ~= State.RunToken or not getgenv()[flagName] then
+                break
+            end
+
+            if aborted or LocalPlayer.Character ~= runCharacter or humanoid.Health <= 0 then
+                if not waitForRespawnAndDelay(runCharacter, flagName) then
+                    break
+                end
+                continue
+            end
+
+            if resetDelay and resetDelay > 0 then
+                if not waitUntil(resetDelay, flagName) then
+                    break
+                end
+            end
+
+            if humanoid and humanoid.Health > 0 then
+                character:BreakJoints()
+            end
+
+            if not waitForRespawnAndDelay(runCharacter, flagName) then
+                break
+            end
+        end
+    end)
+end
+
+task.spawn(function()
+    local remote
+    while task.wait(0.1) do
+        if getgenv().AutoClaimGold then
+            if not remote or not remote.Parent then
+                remote = workspace:FindFirstChild("ClaimRiverResultsGold")
+            end
+
+            if remote then
+                pcall(function()
+                    remote:FireServer()
+                end)
+            end
+        end
+    end
+end)
+
+local InfoTab = Window:Tab({
+    Title = "Info",
+    Icon = "solar:info-circle-bold",
+})
+
+local AboutSection = InfoTab:Section({
+    Title = "About",
+    TextXAlignment = "Center",
+    TextSize = 20,
+    Icon = "info"
+})
+
+AboutSection:Paragraph({
+    Title = "Altis Hub",
+    Desc = "Lightweight utility hub focused on performance and clean UI.\nBuilt for stability and smooth experience."
+})
+
+InfoTab:Divider()
+
+local StatusSection = InfoTab:Section({
+    Title = "Status",
+    TextXAlignment = "Center",
+    TextSize = 20,
+    Icon = "shield"
+})
+
+StatusSection:Paragraph({
+    Title = "System Status",
+    Desc = "Map: Build A Boat For Treasure\nStatus: Working\nSecurity: Safe"
+})
+
+InfoTab:Divider()
+
+local ChangelogSection = InfoTab:Section({
+    Title = "Changelog",
+    TextXAlignment = "Center",
+    TextSize = 20,
+    Icon = "history"
+})
+
+ChangelogSection:Paragraph({
+    Title = "v1.00",
+    Desc = "+ Info tab added\n+ Auto Farm tab added\n+ FPS/Ping tags added"
+})
+
+InfoTab:Divider()
+
+local SocialsSection = InfoTab:Section({
+    Title = "Socials",
+    TextXAlignment = "Center",
+    TextSize = 20,
+    Icon = "globe"
+})
+
+SocialsSection:Paragraph({
+    Title = "Community",
+    Desc = "Join our community for updates and support.",
+    Buttons = {
+        {
+            Title = "Copy Discord Invite",
+            Icon = "copy",
+            Callback = function()
+                local link = "https://discord.gg/fBWSRqbMwn"
+                if setclipboard then
+                    setclipboard(link)
+                elseif SetClipboard then
+                    SetClipboard(link)
+                end
+            end
+        }
+    }
+})
+
+InfoTab:Divider()
+
+local AutoFarmTab = Window:Tab({
+    Title = "Auto Farm",
+    Icon = "solar:leaf-bold",
+})
+
+local TweenSection = AutoFarmTab:Section({
+    Title = "Tween",
+    TextXAlignment = "Center",
+    TextSize = 20,
+    Icon = "send"
+})
+
+local TweenFullRoute = {
+    { Position = Vector3.new(-51.565643310546875, 65.00004577636719, 1369.090087890625) },
+    { Position = Vector3.new(-51.565643310546875, 65.00004577636719, 8299.08984375) },
+    { Position = Vector3.new(-55.706512451171875, 65.7396240234375, 9492.3564453125) },
+    { Position = Vector3.new(-55.706512451171875, -358.7396240234375, 9492.3564453125) },
+}
+
+local TweenBlockRoute = {
+    { Position = Vector3.new(-51.565643310546875, 65.00004577636719, 1369.090087890625) },
+    { Position = Vector3.new(-51.565643310546875, 65.00004577636719, 2909.090087890625) },
+    { Position = Vector3.new(-55.706512451171875, -358.7396240234375, 9492.3564453125) },
+}
+
+local TweenX2Route = {
+    { Position = Vector3.new(-51.565643310546875, 65.00004577636719, 1369.090087890625) },
+    { Position = Vector3.new(-51.565643310546875, 65.00004577636719, 2139.090087890625) },
+    { Position = Vector3.new(-51.565643310546875, 65.00004577636719, 8299.08984375) },
+}
+
+TweenSection:Toggle({
+    Title = "Farm Gold + Gold Block",
+    Callback = function(state)
+        getgenv().TweenFull = state
+        getgenv().TweenBlock = false
+        getgenv().TweenX2 = false
+        getgenv().TeleportFull = false
+        getgenv().TeleportBlock = false
+        getgenv().TeleportX2 = false
+        getgenv().AutoClaimGold = false
+
+        State.RunToken += 1
+
+        if state then
+            startTweenFarm("TweenFull", TweenFullRoute, 10)
+        end
+    end
+})
+
+TweenSection:Toggle({
+    Title = "Farm Gold Block",
+    Callback = function(state)
+        getgenv().TweenBlock = state
+        getgenv().TweenFull = false
+        getgenv().TweenX2 = false
+        getgenv().TeleportFull = false
+        getgenv().TeleportBlock = false
+        getgenv().TeleportX2 = false
+        getgenv().AutoClaimGold = false
+
+        State.RunToken += 1
+
+        if state then
+            startTweenFarm("TweenBlock", TweenBlockRoute, 10)
+        end
+    end
+})
+
+TweenSection:Toggle({
+    Title = "Farm Gold(X2 Gold)",
+    Callback = function(state)
+        getgenv().TweenX2 = state
+        getgenv().TweenFull = false
+        getgenv().TweenBlock = false
+        getgenv().TeleportFull = false
+        getgenv().TeleportBlock = false
+        getgenv().TeleportX2 = false
+        getgenv().AutoClaimGold = state
+
+        State.RunToken += 1
+
+        if state then
+            startTweenFarm("TweenX2", TweenX2Route, 0)
+        end
+    end
+})
+
+AutoFarmTab:Divider()
+
+local TeleportSection = AutoFarmTab:Section({
+    Title = "Teleport",
+    TextXAlignment = "Center",
+    TextSize = 20,
+    Icon = "zap"
+})
+
+local TeleportFullRoute = {
+    { Position = Vector3.new(-51.565643310546875, 65.00004577636719, 1369.090087890625), Wait = 2 },
+    { Position = Vector3.new(-51.565643310546875, 65.00004577636719, 2139.090087890625), Wait = 2 },
+    { Position = Vector3.new(-51.565643310546875, 65.00004577636719, 2909.090087890625), Wait = 2 },
+    { Position = Vector3.new(-51.565643310546875, 65.00004577636719, 3679.090087890625), Wait = 2 },
+    { Position = Vector3.new(-51.565643310546875, 65.00004577636719, 4449.08984375), Wait = 2 },
+    { Position = Vector3.new(-53.566001892089844, 73.34969329833984, 5207.64208984375), Wait = 2 },
+    { Position = Vector3.new(-51.565643310546875, 65.00004577636719, 5989.08984375), Wait = 2 },
+    { Position = Vector3.new(-51.565643310546875, 65.00004577636719, 6759.08984375), Wait = 2 },
+    { Position = Vector3.new(-51.565643310546875, 65.00004577636719, 7529.08984375), Wait = 2 },
+    { Position = Vector3.new(-51.565643310546875, 65.00004577636719, 8299.08984375), Wait = 2 },
+    { Position = Vector3.new(-55.706512451171875, -358.7396240234375, 9492.3564453125) },
+}
+
+local TeleportBlockRoute = {
+    { Position = Vector3.new(-51.565643310546875, 65.00004577636719, 1369.090087890625), Wait = 2 },
+    { Position = Vector3.new(-51.565643310546875, 65.00004577636719, 2139.090087890625), Wait = 2 },
+    { Position = Vector3.new(-55.706512451171875, -358.7396240234375, 9492.3564453125) },
+}
+
+local TeleportX2Route = {
+    { Position = Vector3.new(-51.565643310546875, 65.00004577636719, 1369.090087890625), Wait = 2 },
+    { Position = Vector3.new(-51.565643310546875, 65.00004577636719, 2139.090087890625), Wait = 2 },
+    { Position = Vector3.new(-51.565643310546875, 65.00004577636719, 2909.090087890625), Wait = 2 },
+    { Position = Vector3.new(-51.565643310546875, 65.00004577636719, 3679.090087890625), Wait = 2 },
+    { Position = Vector3.new(-51.565643310546875, 65.00004577636719, 4449.08984375), Wait = 2 },
+    { Position = Vector3.new(-53.566001892089844, 73.34969329833984, 5207.64208984375), Wait = 2 },
+    { Position = Vector3.new(-51.565643310546875, 65.00004577636719, 5989.08984375), Wait = 2 },
+    { Position = Vector3.new(-51.565643310546875, 65.00004577636719, 6759.08984375), Wait = 2 },
+    { Position = Vector3.new(-51.565643310546875, 65.00004577636719, 7529.08984375), Wait = 2 },
+    { Position = Vector3.new(-51.565643310546875, 65.00004577636719, 8299.08984375), Wait = 1 },
+}
+
+TeleportSection:Toggle({
+    Title = "Farm Gold + Gold Block",
+    Callback = function(state)
+        getgenv().TeleportFull = state
+        getgenv().TeleportBlock = false
+        getgenv().TeleportX2 = false
+        getgenv().TweenFull = false
+        getgenv().TweenBlock = false
+        getgenv().TweenX2 = false
+        getgenv().AutoClaimGold = false
+
+        State.RunToken += 1
+
+        if state then
+            startTeleportFarm("TeleportFull", TeleportFullRoute, 10)
+        end
+    end
+})
+
+TeleportSection:Toggle({
+    Title = "Farm Gold Block",
+    Callback = function(state)
+        getgenv().TeleportBlock = state
+        getgenv().TeleportFull = false
+        getgenv().TeleportX2 = false
+        getgenv().TweenFull = false
+        getgenv().TweenBlock = false
+        getgenv().TweenX2 = false
+        getgenv().AutoClaimGold = false
+
+        State.RunToken += 1
+
+        if state then
+            startTeleportFarm("TeleportBlock", TeleportBlockRoute, 10)
+        end
+    end
+})
+
+TeleportSection:Toggle({
+    Title = "Farm Gold(X2 Gold)",
+    Callback = function(state)
+        getgenv().TeleportX2 = state
+        getgenv().TeleportFull = false
+        getgenv().TeleportBlock = false
+        getgenv().TweenFull = false
+        getgenv().TweenBlock = false
+        getgenv().TweenX2 = false
+        getgenv().AutoClaimGold = state
+
+        State.RunToken += 1
+
+        if state then
+            startTeleportFarm("TeleportX2", TeleportX2Route, 1)
+        end
+    end
+})
+
+AutoFarmTab:Divider()
