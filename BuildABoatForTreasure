@@ -600,6 +600,59 @@ local AutoFarmTab = Window:Tab({
     Icon = "solar:leaf-bold",
 })
 
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+
+-- Đảm bảo data đã load xong trước khi chạy script
+local Data = LocalPlayer:WaitForChild("Data", 10)
+if not Data then return end
+
+local GoldValue = Data:WaitForChild("Gold")
+local GoldBlockValue = Data:WaitForChild("GoldBlock")
+
+-- Khởi tạo các Paragraph ban đầu
+local GoldParagraph = AutoFarmTab:Paragraph({
+    Title = "Current Gold: " .. GoldValue.Value
+})
+
+local GoldBlockParagraph = AutoFarmTab:Paragraph({
+    Title = "Current Gold Block: " .. GoldBlockValue.Value
+})
+
+local GoldPerHourParagraph = AutoFarmTab:Paragraph({
+    Title = "Gold Per Hour: 0/h"
+})
+
+-- Các biến phục vụ tính toán Gold Per Hour
+local StartGold = GoldValue.Value
+local StartTime = os.clock()
+
+-- Vòng lặp cập nhật UI mỗi giây
+task.spawn(function()
+    while true do
+        -- 1. Cập nhật số Gold và Gold Block hiện tại
+        local currentGold = GoldValue.Value
+        local currentGoldBlock = GoldBlockValue.Value
+        
+        GoldParagraph:SetTitle("Current Gold: " .. currentGold)
+        GoldBlockParagraph:SetTitle("Current Gold Block: " .. currentGoldBlock)
+        
+        -- 2. Tính toán Gold Per Hour (Vàng mỗi giờ)
+        local timeElapsed = os.clock() - StartTime
+        local goldGained = currentGold - StartGold
+        
+        local goldPerHour = 0
+        if timeElapsed > 0 and goldGained > 0 then
+            -- Công thức quy đổi lượng vàng kiếm được ra mốc 1 giờ (3600 giây)
+            goldPerHour = math.floor((goldGained / timeElapsed) * 3600)
+        end
+        
+        GoldPerHourParagraph:SetTitle("Gold Per Hour: " .. goldPerHour .. "/h")
+        
+        task.wait(1) -- Chờ đúng 1 giây rồi lặp lại
+    end
+end)
+
 local TweenSection = AutoFarmTab:Section({
     Title = "Tween",
     TextXAlignment = "Center",
