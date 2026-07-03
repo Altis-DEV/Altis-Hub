@@ -9,6 +9,7 @@ WindUI:AddTheme({
     Outline = Color3.fromHex("#c084fc"),
     Text = Color3.fromHex("#faf5ff"),
     Placeholder = Color3.fromHex("#d8b4fe"),
+    SectionBoxBackgroundTransparency = 0.90,
     Button = Color3.fromHex("#8b5cf6"),
     Icon = Color3.fromHex("#d8b4fe"),
 })
@@ -185,9 +186,9 @@ RunService.RenderStepped:Connect(function()
         local fps = math.floor(frameCount / (now - lastUpdate))
         FPSTag:SetTitle("FPS: " .. fps)
 
-        if fps >= 50 then
+        if fps >= 40 then
             FPSTag:SetColor(Color3.fromRGB(0, 255, 0))
-        elseif fps >= 30 then
+        elseif fps >= 20 then
             FPSTag:SetColor(Color3.fromRGB(255, 200, 0))
         else
             FPSTag:SetColor(Color3.fromRGB(255, 0, 0))
@@ -224,11 +225,11 @@ task.spawn(function()
             local ping = math.floor(pingValue)
             PingTag:SetTitle("Ping: " .. ping .. "ms")
 
-            if ping <= 50 then
+            if ping <= 100 then
                 PingTag:SetColor(Color3.fromRGB(0, 255, 0))
-            elseif ping <= 100 then
-                PingTag:SetColor(Color3.fromRGB(255, 200, 0))
             elseif ping <= 200 then
+                PingTag:SetColor(Color3.fromRGB(255, 200, 0))
+            elseif ping <= 300 then
                 PingTag:SetColor(Color3.fromRGB(255, 150, 0))
             else
                 PingTag:SetColor(Color3.fromRGB(255, 0, 0))
@@ -529,6 +530,7 @@ local AboutSection = InfoTab:Section({
     Title = "About",
     TextXAlignment = "Center",
     TextSize = 20,
+    Box = true, 
     Icon = "info"
 })
 
@@ -543,6 +545,7 @@ local StatusSection = InfoTab:Section({
     Title = "Status",
     TextXAlignment = "Center",
     TextSize = 20,
+    Box = true, 
     Icon = "shield"
 })
 
@@ -557,6 +560,7 @@ local ChangelogSection = InfoTab:Section({
     Title = "Changelog",
     TextXAlignment = "Center",
     TextSize = 20,
+    Box = true, 
     Icon = "history"
 })
 
@@ -571,6 +575,7 @@ local SocialsSection = InfoTab:Section({
     Title = "Socials",
     TextXAlignment = "Center",
     TextSize = 20,
+    Box = true, 
     Icon = "globe"
 })
 
@@ -623,6 +628,8 @@ local GoldPerHourParagraph = AutoFarmTab:Paragraph({
     Title = "Gold Per Hour: 0/h"
 })
 
+AutoFarmTab:Divider()
+
 -- Các biến phục vụ tính toán Gold Per Hour
 local StartGold = GoldValue.Value
 local StartTime = os.clock()
@@ -657,6 +664,7 @@ local TweenSection = AutoFarmTab:Section({
     Title = "Tween",
     TextXAlignment = "Center",
     TextSize = 20,
+    Box = true, 
     Icon = "send"
 })
 
@@ -742,6 +750,7 @@ local TeleportSection = AutoFarmTab:Section({
     Title = "Teleport",
     TextXAlignment = "Center",
     TextSize = 20,
+    Box = true, 
     Icon = "zap"
 })
 
@@ -835,4 +844,4 @@ TeleportSection:Toggle({
     end
 })
 
-AutoFarmTab:Divider()
+AutoFarmTab:Divider() ,.,.
