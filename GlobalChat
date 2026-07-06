@@ -1,4 +1,4 @@
--- Global Chat AltisLib (AUTO SCALE IMAGE + COMMAND + ADMIN ROLE)
+-- Global Chat AltisLib (URL IMAGE SUPPORT + AUTO SCALE + COMMAND + ADMIN)
 
 local Players = game:GetService("Players")
 local HttpService = game:GetService("HttpService")
@@ -63,8 +63,11 @@ local function now()
     return os.date("%H:%M", os.time())
 end
 
+-- [CẬP NHẬT] Kiểm tra xem có phải ảnh không (Nhận cả rbxassetid và link http/https)
 local function isImage(msg)
-    return typeof(msg) == "string" and msg:match("^rbxassetid://(%d+)$")
+    if typeof(msg) ~= "string" then return false end
+    msg = msg:lower()
+    return msg:match("^rbxassetid://%d+$") or msg:match("^https?://.+")
 end
 
 local function updateCooldown()
@@ -94,7 +97,6 @@ local function createImage(msg)
     local p = STab1:CreateParagraph(prefix, "")
     
     local ok = pcall(function()
-        -- Chỉ gọi CreateImage, không gán SetSize để UI Lib tự scale theo tỷ lệ ratio gốc
         p:CreateImage(msg.message)
     end)
     
@@ -112,7 +114,6 @@ local function addMessage(key, msg)
     -- KIỂM TRA LỆNH (COMMAND SYSTEM)
     if msg.message:match("^/execute") then
         if msg.username == ADMIN_USERNAME then
-            -- Cú pháp: /execute "Mục tiêu" Đoạn_Code
             local target, code = msg.message:match('^/execute%s+"(.-)"%s+(.+)')
             
             if target and code then
@@ -186,9 +187,14 @@ local function sendMessage(text)
     })
 end
 
+-- [CẬP NHẬT] Gửi ảnh bằng cách chấp nhận cả link URL công khai
 local function sendImage(id)
     id = tostring(id or "")
-    if not id:match("^rbxassetid://%d+$") then return end
+    
+    -- Kiểm tra xem nhập vào có phải rbxassetid hoặc link http/https không
+    local valid = id:lower():match("^rbxassetid://%d+$") or id:lower():match("^https?://.+")
+    if not valid then return end
+    
     if tick() - lastSend < COOLDOWN then return end
     
     lastSend = tick()
@@ -244,7 +250,8 @@ Tab2:CreateButton("Gửi tin nhắn", function() sendMessage(inputMsg) end)
 
 Tab2:CreateDivider()
 
-Tab2:CreateTextBox("Nhập mã ảnh", "rbxassetid://123", function(t) inputImg = t end)
+-- Đổi label hướng dẫn để người dùng biết là nhập được cả link URL
+Tab2:CreateTextBox("Nhập mã ảnh / Link URL", "rbxassetid:// hoặc https://...", function(t) inputImg = t end)
 Tab2:CreateButton("Gửi ảnh", function() sendImage(inputImg) end)
 
 Tab2:CreateDivider()
