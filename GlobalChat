@@ -79,7 +79,7 @@ local OWNERS = {
 }
 
 local ADMINS = {
-    ["hoang_mai0"] = true,
+    ["Hoang_mai0"] = true,
     ["rypzRXcHVG"] = true   -- ROBLOX777
 }
 
