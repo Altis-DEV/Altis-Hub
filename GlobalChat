@@ -1,4 +1,4 @@
--- Altis Hub - Global Chat (V15: ASYNC CACHE + MEDIA RESIZE + UNIVERSAL TRIGGERS)
+-- Altis Hub - Global Chat (V16: STABLE IMAGE CACHE & RESIZE ONLY)
 
 local Players = game:GetService("Players")
 local HttpService = game:GetService("HttpService")
@@ -107,7 +107,7 @@ local SUser = Tab3:CreateSection("Danh sách User")
 -- LOGIC TABS ADMIN ĐỘNG
 ---------------------------------------------------
 local TabAdminChat, STabAdminChat, TabAdminControl
-local inputAdminMsg, inputAdminImg, inputAdminVid = "", "", ""
+local inputAdminMsg, inputAdminImg = "", ""
 local adminMessageObjects = {}
 
 local startTime = os.time()
@@ -154,10 +154,6 @@ local function createAdminTabs()
     TabAdminControl:CreateTextBox("Gửi ảnh (Admin)", "URL;(W,H) hoặc URL...", function(t) inputAdminImg = t end)
     TabAdminControl:CreateButton("Gửi Ảnh Admin", function() sendAdminMessage(inputAdminImg) end)
     TabAdminControl:CreateDivider()
-
-    TabAdminControl:CreateTextBox("Gửi Video (Admin)", "WebM;(W,H) hoặc WebM...", function(t) inputAdminVid = t end)
-    TabAdminControl:CreateButton("Gửi Video Admin", function() sendAdminMessage(inputAdminVid) end)
-    TabAdminControl:CreateDivider()
     
     TabAdminControl:CreateButton("Làm sạch Admin Chat", function() clearAdminChat() end)
     
@@ -168,11 +164,10 @@ local lastMyRole = getRole(LocalPlayer.Name)
 if lastMyRole == "OWNER" or lastMyRole == "ADMIN" then createAdminTabs() end
 
 ---------------------------------------------------
--- UTIL FUNCTIONS & CACHE SYSTEM (MỚI)
+-- UTIL FUNCTIONS & IMAGE CACHE SYSTEM
 ---------------------------------------------------
 local function now() return os.date("%H:%M", os.time()) end
 
--- Kiểm tra xem message là URL trơn hay có kèm Size: url;(W,H)
 local function parseMediaString(msg)
     if typeof(msg) ~= "string" then return nil, nil, nil end
     local url, w, h = msg:match("^(.-);%((%d+),(%d+)%)$")
@@ -180,17 +175,11 @@ local function parseMediaString(msg)
     return msg, nil, nil
 end
 
-local function isVideo(msg) 
-    local url = parseMediaString(msg)
-    return type(url) == "string" and url:lower():match("%.webm$") 
-end
-
 local function isImage(msg) 
     local url = parseMediaString(msg)
     return type(url) == "string" and (url:lower():match("^rbxassetid://%d+$") or url:lower():match("^https?://.+")) 
 end
 
--- Hàm quản lý CACHE ảnh/video tự động tải và lấy từ máy
 local function getCacheAsset(url)
     if not (url:match("^http://") or url:match("^https://")) then return url end
     if not (writefile and isfile and makefolder and getcustomasset) then return url end
@@ -198,27 +187,36 @@ local function getCacheAsset(url)
     local folderName = "AltisGlobalChatCache"
     if not isfolder(folderName) then makefolder(folderName) end
 
-    -- Trích xuất tên file và tạo Hash nhẹ để chống trùng tên
-    local fileName = url:match("([^/]+)$") or "unknown_media"
+    local basePath = string.split(url, "?")[1] or url
+    local fileName = basePath:match("([^/]+)$") or "image_cache"
     fileName = fileName:gsub("[^%w%.%-]", "") 
     
     local urlHash = 0
     for i = 1, #url do urlHash = (urlHash + string.byte(url, i)) % 9999999 end
     local filePath = folderName .. "/" .. tostring(urlHash) .. "_" .. fileName
 
-    -- Nếu đã tải trước đó, lấy luôn từ ổ cứng
     if isfile(filePath) then
         return getcustomasset(filePath)
     else
-        -- Nếu chưa có, tải từ web về ổ cứng
         local success, data = pcall(function() return game:HttpGet(url) end)
         if success and data then
             writefile(filePath, data)
             return getcustomasset(filePath)
         else
-            return url -- Nếu lỗi tải, fallback trả về link gốc
+            return url
         end
     end
+end
+
+local function safelyDestroy(guiObj)
+    if not guiObj then return end
+    pcall(function()
+        if type(guiObj) == "table" and guiObj.Destroy then
+            guiObj:Destroy()
+        elseif typeof(guiObj) == "Instance" then
+            guiObj:Destroy()
+        end
+    end)
 end
 
 local function updateCooldown()
@@ -301,7 +299,7 @@ local function updateOnlineStatus()
         local obj = onlineObjects[userId]
         
         if obj and obj.role ~= userRole then
-            pcall(function() if obj.p and obj.p.Destroy then obj.p:Destroy() end end)
+            safelyDestroy(obj.p)
             onlineObjects[userId] = nil
             obj = nil
         end
@@ -321,7 +319,7 @@ local function updateOnlineStatus()
 
     for userId, obj in pairs(onlineObjects) do
         if not currentOnline[userId] then
-            pcall(function() if obj.p and obj.p.Destroy then obj.p:Destroy() end end)
+            safelyDestroy(obj.p)
             onlineObjects[userId] = nil 
         end
     end
@@ -366,7 +364,7 @@ local function processIncomingTriggers(msg)
 end
 
 ---------------------------------------------------
--- RENDER UI MESSAGES (KÈM CACHE & SIZE CHẠY NGẦM)
+-- RENDER UI MESSAGES (CHỈ XỬ LÝ ẢNH CACHE)
 ---------------------------------------------------
 local function renderMessage(msg, section)
     local prefix = getSenderPrefix(msg)
@@ -375,35 +373,24 @@ local function renderMessage(msg, section)
     
     local obj = section:CreateParagraph(prefix, "")
 
-    -- Xử lý đa phương tiện chạy ngầm đa luồng
-    if isVideo(rawText) or isImage(rawText) then
-        obj:SetText("[Đang xử lý/tải tệp tin đa phương tiện...]")
+    if isImage(rawText) then
+        obj:SetText("[Đang tải ảnh...]")
         
         task.spawn(function()
             local cachedUrl = getCacheAsset(url)
             local ok = false
             
-            if isVideo(rawText) then
-                if w and h then
-                    ok = pcall(function() obj:CreateVideo(cachedUrl, w, h) end)
-                end
-                if not ok then
-                    ok = pcall(function() obj:CreateVideo(cachedUrl) end)
-                end
-            else
-                if w and h then
-                    ok = pcall(function() obj:CreateImage(cachedUrl, w, h) end)
-                end
-                if not ok then
-                    ok = pcall(function() obj:CreateImage(cachedUrl) end)
-                end
+            if w and h then
+                ok = pcall(function() obj:CreateImage(cachedUrl, w, h) end)
+            end
+            if not ok then
+                ok = pcall(function() obj:CreateImage(cachedUrl) end)
             end
             
-            -- Nếu UI Library không hỗ trợ hoặc tải hỏng, hoàn nguyên lại văn bản URL
             if not ok then 
                 obj:SetText(rawText) 
             else 
-                obj:SetText("") -- Xóa dòng chữ "[Đang xử lý...]" khi load thành công
+                obj:SetText("") 
             end
         end)
     else
@@ -427,7 +414,7 @@ local function addMessage(key, msg)
     table.insert(messageObjects, obj)
     if #messageObjects > MAX_UI_MESSAGES then
         local oldestObj = table.remove(messageObjects, 1)
-        pcall(function() if oldestObj and oldestObj.Destroy then oldestObj:Destroy() end end)
+        safelyDestroy(oldestObj)
     end
 end
 
@@ -445,7 +432,7 @@ local function addAdminMessage(key, msg)
         table.insert(adminMessageObjects, obj)
         if #adminMessageObjects > MAX_UI_MESSAGES then
             local oldestObj = table.remove(adminMessageObjects, 1)
-            pcall(function() if oldestObj and oldestObj.Destroy then oldestObj:Destroy() end end)
+            safelyDestroy(oldestObj)
         end
     end
 end
@@ -533,7 +520,7 @@ sendAdminMessage = function(text)
 end
 
 local function clearChat()
-    for _, v in ipairs(messageObjects) do pcall(function() if v and v.Destroy then v:Destroy() end end) end
+    for _, v in ipairs(messageObjects) do safelyDestroy(v) end
     messageObjects = {}; startTime = os.time()
 end
 
@@ -572,7 +559,7 @@ local function checkRoleObserver()
         end
         lastMyRole = myLiveRole
         
-        for uid, obj in pairs(onlineObjects) do pcall(function() if obj.p and obj.p.Destroy then obj.p:Destroy() end end) end
+        for uid, obj in pairs(onlineObjects) do safelyDestroy(obj.p) end
         onlineObjects = {}
     end
 end
@@ -580,7 +567,7 @@ end
 ---------------------------------------------------
 -- GẮN NÚT VÀ SỰ KIỆN CHO UI CƠ BẢN
 ---------------------------------------------------
-local inputMsg, inputImg, inputVid = "", "", ""
+local inputMsg, inputImg = "", ""
 
 Tab2:CreateTextBox("Nhập tin nhắn", "Văn bản / Lệnh...", function(t) inputMsg = t end)
 Tab2:CreateButton("Gửi tin nhắn", function() sendMessage(inputMsg) end)
@@ -588,10 +575,6 @@ Tab2:CreateDivider()
 
 Tab2:CreateTextBox("Nhập mã ảnh / Link URL", "URL;(W,H) hoặc URL...", function(t) inputImg = t end)
 Tab2:CreateButton("Gửi ảnh", function() sendMessage(inputImg) end)
-Tab2:CreateDivider()
-
-Tab2:CreateTextBox("Nhập Link Video", "WebM;(W,H) hoặc WebM...", function(t) inputVid = t end)
-Tab2:CreateButton("Gửi Video", function() sendMessage(inputVid) end)
 Tab2:CreateDivider()
 
 Tab2:CreateButton("Làm sạch khung chat", function() clearChat() end)
@@ -616,4 +599,4 @@ coroutine.wrap(function()
     end
 end)()
 
-Window:SendNotification("Altis Hub", "Hệ thống Global Chat V15 đã được tải!", 3)
+Window:SendNotification("Altis Hub", "Hệ thống Global Chat V16 đã được tải!", 3)
