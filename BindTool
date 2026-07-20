@@ -1,0 +1,314 @@
+--// Dịch vụ hệ thống Roblox
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+
+local LocalPlayer = Players.LocalPlayer
+local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+local Name = LocalPlayer.Name
+local Mouse = LocalPlayer:GetMouse()
+
+-- ==========================================
+-- 1. KHỞI TẠO GIAO DIỆN (ĐÃ TỐI ƯU NHỎ GỌN)
+-- ==========================================
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "MobileKeybindMapperMini"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.Parent = game:GetService("CoreGui")
+
+local MainFrame = Instance.new("Frame")
+MainFrame.Name = "MainFrame"
+MainFrame.Size = UDim2.new(0, 240, 0, 340)
+MainFrame.Position = UDim2.new(0.05, 0, 0.2, 0)
+MainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+MainFrame.BorderSizePixel = 0
+MainFrame.Active = true
+MainFrame.ClipsDescendants = true
+MainFrame.Parent = ScreenGui
+
+local UICorner = Instance.new("UICorner")
+UICorner.CornerRadius = UDim.new(0, 8)
+UICorner.Parent = MainFrame
+
+local UIStroke = Instance.new("UIStroke")
+UIStroke.Color = Color3.fromRGB(60, 60, 60)
+UIStroke.Thickness = 1.2
+UIStroke.Parent = MainFrame
+
+-- Thanh Tiêu Đề (Topbar)
+local TitleLabel = Instance.new("TextLabel")
+TitleLabel.Name = "TitleLabel"
+TitleLabel.Size = UDim2.new(1, 0, 0, 35)
+TitleLabel.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+TitleLabel.Text = " 🔌 KEYBIND MAPPER"
+TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+TitleLabel.TextSize = 12
+TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
+TitleLabel.Font = Enum.Font.SourceSansBold
+TitleLabel.Parent = MainFrame
+Instance.new("UICorner", TitleLabel).CornerRadius = UDim.new(0, 8)
+
+-- NÚT THU NHỎ (MINIMIZE BUTTON)
+local MinBtn = Instance.new("TextButton")
+MinBtn.Name = "MinimizeButton"
+MinBtn.Size = UDim2.new(0, 25, 0, 25)
+MinBtn.Position = UDim2.new(1, -30, 0, 5)
+MinBtn.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+MinBtn.Text = "−"
+MinBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+MinBtn.TextSize = 16
+MinBtn.Font = Enum.Font.SourceSansBold
+MinBtn.Parent = TitleLabel
+Instance.new("UICorner", MinBtn).CornerRadius = UDim.new(0, 6)
+
+-- Các nút chọn khối
+local BtnController = Instance.new("TextButton")
+BtnController.Size = UDim2.new(0, 210, 0, 30)
+BtnController.Position = UDim2.new(0.5, -105, 0, 45)
+BtnController.BackgroundColor3 = Color3.fromRGB(44, 62, 80)
+BtnController.Text = "🎮 Chọn Ghế / Công Tắc"
+BtnController.TextColor3 = Color3.fromRGB(255, 255, 255)
+BtnController.Font = Enum.Font.SourceSansBold
+BtnController.TextSize = 13
+BtnController.Parent = MainFrame
+Instance.new("UICorner", BtnController).CornerRadius = UDim.new(0, 5)
+
+local BtnTarget = Instance.new("TextButton")
+BtnTarget.Size = UDim2.new(0, 210, 0, 30)
+BtnTarget.Position = UDim2.new(0.5, -105, 0, 80)
+BtnTarget.BackgroundColor3 = Color3.fromRGB(44, 62, 80)
+BtnTarget.Text = "📦 Chọn Khối Cần Kích Hoạt"
+BtnTarget.TextColor3 = Color3.fromRGB(255, 255, 255)
+BtnTarget.Font = Enum.Font.SourceSansBold
+BtnTarget.TextSize = 13
+BtnTarget.Parent = MainFrame
+Instance.new("UICorner", BtnTarget).CornerRadius = UDim.new(0, 5)
+
+-- Cấu trúc dữ liệu và tạo dòng nhập phím
+local bindRows = {
+    {Name = "Forward", Display = "Tiến (Forward):", Fallbacks = {"BindUp", "BindForward"}},
+    {Name = "Backward", Display = "Lùi (Backward):", Fallbacks = {"BindDown", "BindBackward"}},
+    {Name = "Left", Display = "Trái (Left):", Fallbacks = {"BindLeft"}},
+    {Name = "Right", Display = "Phải (Right):", Fallbacks = {"BindRight"}},
+    {Name = "Activate", Display = "Kích Nổ/Hỏa Lực:", Fallbacks = {"BindFire", "BindActivate", "Activate"}}
+}
+
+local textBoxes = {}
+local startY = 120
+
+for i, rowData in ipairs(bindRows) do
+    local Label = Instance.new("TextLabel")
+    Label.Size = UDim2.new(0, 110, 0, 25)
+    Label.Position = UDim2.new(0, 15, 0, startY)
+    Label.BackgroundTransparency = 1
+    Label.Text = rowData.Display
+    Label.TextColor3 = Color3.fromRGB(180, 180, 180)
+    Label.TextSize = 12
+    Label.TextXAlignment = Enum.TextXAlignment.Left
+    Label.Font = Enum.Font.SourceSans
+    Label.Parent = MainFrame
+    
+    local TextBox = Instance.new("TextBox")
+    TextBox.Size = UDim2.new(0, 80, 0, 24)
+    TextBox.Position = UDim2.new(0, 145, 0, startY)
+    TextBox.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+    TextBox.Text = ""
+    TextBox.TextColor3 = Color3.fromRGB(254, 202, 87)
+    TextBox.TextSize = 13
+    TextBox.Font = Enum.Font.SourceSansBold
+    TextBox.PlaceholderText = "[Trống]"
+    TextBox.PlaceholderColor3 = Color3.fromRGB(70, 70, 70)
+    TextBox.ClearTextOnFocus = false
+    TextBox.Parent = MainFrame
+    Instance.new("UICorner", TextBox).CornerRadius = UDim.new(0, 4)
+    
+    textBoxes[rowData.Name] = TextBox
+    startY = startY + 28
+end
+
+-- Nút Submit
+local BtnSubmit = Instance.new("TextButton")
+BtnSubmit.Size = UDim2.new(0, 210, 0, 35)
+BtnSubmit.Position = UDim2.new(0.5, -105, 0, 290)
+BtnSubmit.BackgroundColor3 = Color3.fromRGB(231, 76, 60)
+BtnSubmit.Text = "⚡ TIẾN HÀNH NỐI MẠCH"
+BtnSubmit.TextColor3 = Color3.fromRGB(255, 255, 255)
+BtnSubmit.Font = Enum.Font.SourceSansBold
+BtnSubmit.TextSize = 14
+BtnSubmit.Parent = MainFrame
+Instance.new("UICorner", BtnSubmit).CornerRadius = UDim.new(0, 5)
+
+-- ==========================================
+-- 2. LOGIC THU NHỎ / MỞ RỘNG (TWEEN ANIMATION)
+-- ==========================================
+local isMinimized = false
+MinBtn.Activated:Connect(function()
+    isMinimized = not isMinimized
+    local targetSize = isMinimized and UDim2.new(0, 240, 0, 35) or UDim2.new(0, 240, 0, 340)
+    MinBtn.Text = isMinimized and "+" or "−"
+    MinBtn.BackgroundColor3 = isMinimized and Color3.fromRGB(46, 204, 113) or Color3.fromRGB(45, 45, 45)
+    
+    TweenService:Create(MainFrame, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+        Size = targetSize
+    }):Play()
+end)
+
+-- ==========================================
+-- 3. HỆ THỐNG KÉO THẢ (DRAGGABLE)
+-- ==========================================
+local dragging, dragInput, dragStart, startPos
+TitleLabel.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = true; dragStart = input.Position; startPos = MainFrame.Position
+        input.Changed:Connect(function() if input.UserInputState == Enum.UserInputState.End then dragging = false end end)
+    end
+end)
+TitleLabel.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        if dragging then dragInput = input end
+    end
+end)
+UserInputService.InputChanged:Connect(function(input)
+    if input == dragInput and dragging then
+        local delta = input.Position - dragStart
+        TweenService:Create(MainFrame, TweenInfo.new(0.08, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+            Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+        }):Play()
+    end
+end)
+
+-- ==========================================
+-- 4. XỬ LÝ CHỌN KHỐI QUA KHÔNG GIAN 3D
+-- ==========================================
+local selectingMode = nil
+local selectedController = nil
+local selectedTarget = nil
+
+local function setSelectionMode(mode)
+    selectingMode = mode
+    if mode == "Controller" then
+        BtnController.Text = "🎯 Chọn ghế lái/công tắc..."
+        BtnController.BackgroundColor3 = Color3.fromRGB(230, 126, 34)
+    elseif mode == "Target" then
+        BtnTarget.Text = "🎯 Chọn khối chức năng..."
+        BtnTarget.BackgroundColor3 = Color3.fromRGB(230, 126, 34)
+    end
+end
+
+BtnController.Activated:Connect(function() setSelectionMode("Controller") end)
+BtnTarget.Activated:Connect(function() setSelectionMode("Target") end)
+
+Mouse.Button1Down:Connect(function()
+    if not selectingMode then return end
+    local target = Mouse.Target
+    if not target then return end
+    
+    local playerBlocks = workspace:FindFirstChild("Blocks") and workspace.Blocks:FindFirstChild(Name)
+    if not playerBlocks then return end
+    
+    local current = target
+    while current and current.Parent ~= playerBlocks do
+        current = current.Parent
+    end
+    
+    if current then
+        if selectingMode == "Controller" then
+            selectedController = current
+            BtnController.Text = "✅ Ghế: " .. current.Name
+            BtnController.BackgroundColor3 = Color3.fromRGB(46, 204, 113)
+        elseif selectingMode == "Target" then
+            selectedTarget = current
+            BtnTarget.Text = "✅ Khối: " .. current.Name
+            BtnTarget.BackgroundColor3 = Color3.fromRGB(46, 204, 113)
+        end
+        selectingMode = nil
+    end
+end)
+
+-- ==========================================
+-- 5. ĐÓNG GÓI DỮ LIỆU & GỬI LÊN SERVER
+-- ==========================================
+local function findBindInstance(block, fallbacks)
+    for _, childName in ipairs(fallbacks) do
+        local match = block:FindFirstChild(childName)
+        if match then return match end
+    end
+    for _, child in ipairs(block:GetChildren()) do
+        if string.sub(child.Name, 1, 4) == "Bind" then return child end
+    end
+    return nil
+end
+
+BtnSubmit.Activated:Connect(function()
+    -- Cập nhật nhân vật mới nhất đề phòng người chơi vừa reset
+    Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+    local Humanoid = Character:FindFirstChildOfClass("Humanoid")
+    
+    -- TỰ ĐỘNG TÌM VÀ CẦM BINDTOOL
+    local bindTool = Character:FindFirstChild("BindTool")
+    if not bindTool then
+        bindTool = LocalPlayer.Backpack:FindFirstChild("BindTool")
+        if bindTool and Humanoid then
+            Humanoid:EquipTool(bindTool)
+            task.wait(0.1) -- Đợi 0.1s để game load Tool vào tay hoàn toàn
+        end
+    end
+    
+    if not bindTool then
+        BtnSubmit.Text = "❌ KHÔNG CÓ BINDTOOL TRONG TÚI!"
+        task.delay(1.5, function() BtnSubmit.Text = "⚡ TIẾN HÀNH NỐI MẠCH" end)
+        return
+    end
+    
+    if not selectedController or not selectedTarget then
+        BtnSubmit.Text = "❌ CHƯA CHỌN ĐỦ KHỐI!"
+        task.delay(1.5, function() BtnSubmit.Text = "⚡ TIẾN HÀNH NỐI MẠCH" end)
+        return
+    end
+
+    local RF = bindTool:FindFirstChild("RF")
+    if not RF then return end
+
+    local actionTable = {}
+    local keycodeTable = {}
+    local hasData = false
+
+    for _, row in ipairs(bindRows) do
+        local rawText = textBoxes[row.Name].Text
+        if rawText and rawText ~= "" then
+            local cleanStr = string.upper(string.gsub(rawText, "%s+", ""))
+            local success, keyCodeEnum = pcall(function() return Enum.KeyCode[cleanStr] end)
+            
+            if success and keyCodeEnum then
+                local bindInstance = findBindInstance(selectedTarget, row.Fallbacks)
+                if bindInstance then
+                    actionTable[row.Name] = { bindInstance }
+                    keycodeTable[row.Name] = keyCodeEnum.Value
+                    hasData = true
+                end
+            end
+        end
+    end
+
+    if not hasData then
+        BtnSubmit.Text = "❌ HÃY NHẬP ÍT NHẤT 1 PHÍM!"
+        task.delay(1.5, function() BtnSubmit.Text = "⚡ TIẾN HÀNH NỐI MẠCH" end)
+        return
+    end
+
+    local success, err = pcall(function()
+        RF:InvokeServer(actionTable, selectedController, keycodeTable, false, false)
+    end)
+
+    if success then
+        BtnSubmit.BackgroundColor3 = Color3.fromRGB(46, 204, 113)
+        BtnSubmit.Text = "✅ THÀNH CÔNG!"
+        task.delay(1.5, function() 
+            BtnSubmit.Text = "⚡ TIẾN HÀNH NỐI MẠCH" 
+            BtnSubmit.BackgroundColor3 = Color3.fromRGB(231, 76, 60)
+        end)
+    else
+        BtnSubmit.Text = "❌ LỖI GỬI LỆNH MẠCH!"
+        task.delay(1.5, function() BtnSubmit.Text = "⚡ TIẾN HÀNH NỐI MẠCH" end)
+    end
+end)
