@@ -9,10 +9,18 @@ local Name = LocalPlayer.Name
 local Mouse = LocalPlayer:GetMouse()
 
 -- ==========================================
--- 1. KHỞI TẠO GIAO DIỆN (ĐÃ TỐI ƯU NHỎ GỌN)
+-- TẠO TỪ ĐIỂN PHÍM THÔNG MINH (Hỗ trợ viết hoa/thường)
+-- ==========================================
+local KeyMap = {}
+for _, enumItem in ipairs(Enum.KeyCode:GetEnumItems()) do
+    KeyMap[string.upper(enumItem.Name)] = enumItem
+end
+
+-- ==========================================
+-- 1. KHỞI TẠO GIAO DIỆN NHỎ GỌN
 -- ==========================================
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "MobileKeybindMapperMini"
+ScreenGui.Name = "MobileKeybindMapperUltimate"
 ScreenGui.ResetOnSpawn = false
 ScreenGui.Parent = game:GetService("CoreGui")
 
@@ -48,7 +56,7 @@ TitleLabel.Font = Enum.Font.SourceSansBold
 TitleLabel.Parent = MainFrame
 Instance.new("UICorner", TitleLabel).CornerRadius = UDim.new(0, 8)
 
--- NÚT THU NHỎ (MINIMIZE BUTTON)
+-- Nút Thu Nhỏ (Minimize)
 local MinBtn = Instance.new("TextButton")
 MinBtn.Name = "MinimizeButton"
 MinBtn.Size = UDim2.new(0, 25, 0, 25)
@@ -61,7 +69,7 @@ MinBtn.Font = Enum.Font.SourceSansBold
 MinBtn.Parent = TitleLabel
 Instance.new("UICorner", MinBtn).CornerRadius = UDim.new(0, 6)
 
--- Các nút chọn khối
+-- Các Nút Chọn Khối
 local BtnController = Instance.new("TextButton")
 BtnController.Size = UDim2.new(0, 210, 0, 30)
 BtnController.Position = UDim2.new(0.5, -105, 0, 45)
@@ -84,7 +92,7 @@ BtnTarget.TextSize = 13
 BtnTarget.Parent = MainFrame
 Instance.new("UICorner", BtnTarget).CornerRadius = UDim.new(0, 5)
 
--- Cấu trúc dữ liệu và tạo dòng nhập phím
+-- Hàng nhập phím (Đã đổi Placeholder gợi ý dùng dấu phẩy)
 local bindRows = {
     {Name = "Forward", Display = "Tiến (Forward):", Fallbacks = {"BindUp", "BindForward"}},
     {Name = "Backward", Display = "Lùi (Backward):", Fallbacks = {"BindDown", "BindBackward"}},
@@ -116,7 +124,7 @@ for i, rowData in ipairs(bindRows) do
     TextBox.TextColor3 = Color3.fromRGB(254, 202, 87)
     TextBox.TextSize = 13
     TextBox.Font = Enum.Font.SourceSansBold
-    TextBox.PlaceholderText = "[Trống]"
+    TextBox.PlaceholderText = "VD: Q, E" -- Gợi ý đa phím
     TextBox.PlaceholderColor3 = Color3.fromRGB(70, 70, 70)
     TextBox.ClearTextOnFocus = false
     TextBox.Parent = MainFrame
@@ -139,7 +147,7 @@ BtnSubmit.Parent = MainFrame
 Instance.new("UICorner", BtnSubmit).CornerRadius = UDim.new(0, 5)
 
 -- ==========================================
--- 2. LOGIC THU NHỎ / MỞ RỘNG (TWEEN ANIMATION)
+-- 2. TWEEN THU NHỎ & KÉO THẢ (DRAGGABLE)
 -- ==========================================
 local isMinimized = false
 MinBtn.Activated:Connect(function()
@@ -147,15 +155,9 @@ MinBtn.Activated:Connect(function()
     local targetSize = isMinimized and UDim2.new(0, 240, 0, 35) or UDim2.new(0, 240, 0, 340)
     MinBtn.Text = isMinimized and "+" or "−"
     MinBtn.BackgroundColor3 = isMinimized and Color3.fromRGB(46, 204, 113) or Color3.fromRGB(45, 45, 45)
-    
-    TweenService:Create(MainFrame, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-        Size = targetSize
-    }):Play()
+    TweenService:Create(MainFrame, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = targetSize}):Play()
 end)
 
--- ==========================================
--- 3. HỆ THỐNG KÉO THẢ (DRAGGABLE)
--- ==========================================
 local dragging, dragInput, dragStart, startPos
 TitleLabel.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
@@ -178,7 +180,7 @@ UserInputService.InputChanged:Connect(function(input)
 end)
 
 -- ==========================================
--- 4. XỬ LÝ CHỌN KHỐI QUA KHÔNG GIAN 3D
+-- 3. XỬ LÝ CHỌN KHỐI 3D
 -- ==========================================
 local selectingMode = nil
 local selectedController = nil
@@ -207,9 +209,7 @@ Mouse.Button1Down:Connect(function()
     if not playerBlocks then return end
     
     local current = target
-    while current and current.Parent ~= playerBlocks do
-        current = current.Parent
-    end
+    while current and current.Parent ~= playerBlocks do current = current.Parent end
     
     if current then
         if selectingMode == "Controller" then
@@ -226,7 +226,7 @@ Mouse.Button1Down:Connect(function()
 end)
 
 -- ==========================================
--- 5. ĐÓNG GÓI DỮ LIỆU & GỬI LÊN SERVER
+-- 4. XỬ LÝ THUẬT TOÁN ĐA PHÍM & GỬI LÊN SERVER
 -- ==========================================
 local function findBindInstance(block, fallbacks)
     for _, childName in ipairs(fallbacks) do
@@ -240,22 +240,20 @@ local function findBindInstance(block, fallbacks)
 end
 
 BtnSubmit.Activated:Connect(function()
-    -- Cập nhật nhân vật mới nhất đề phòng người chơi vừa reset
     Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
     local Humanoid = Character:FindFirstChildOfClass("Humanoid")
     
-    -- TỰ ĐỘNG TÌM VÀ CẦM BINDTOOL
     local bindTool = Character:FindFirstChild("BindTool")
     if not bindTool then
         bindTool = LocalPlayer.Backpack:FindFirstChild("BindTool")
         if bindTool and Humanoid then
             Humanoid:EquipTool(bindTool)
-            task.wait(0.1) -- Đợi 0.1s để game load Tool vào tay hoàn toàn
+            task.wait(0.15)
         end
     end
     
     if not bindTool then
-        BtnSubmit.Text = "❌ KHÔNG CÓ BINDTOOL TRONG TÚI!"
+        BtnSubmit.Text = "❌ KHÔNG TÌM THẤY BINDTOOL!"
         task.delay(1.5, function() BtnSubmit.Text = "⚡ TIẾN HÀNH NỐI MẠCH" end)
         return
     end
@@ -276,22 +274,36 @@ BtnSubmit.Activated:Connect(function()
     for _, row in ipairs(bindRows) do
         local rawText = textBoxes[row.Name].Text
         if rawText and rawText ~= "" then
-            local cleanStr = string.upper(string.gsub(rawText, "%s+", ""))
-            local success, keyCodeEnum = pcall(function() return Enum.KeyCode[cleanStr] end)
+            local bindInstance = findBindInstance(selectedTarget, row.Fallbacks)
             
-            if success and keyCodeEnum then
-                local bindInstance = findBindInstance(selectedTarget, row.Fallbacks)
-                if bindInstance then
-                    actionTable[row.Name] = { bindInstance }
-                    keycodeTable[row.Name] = keyCodeEnum.Value
-                    hasData = true
+            if bindInstance then
+                -- CẮT CHUỖI ĐA PHÍM BẰNG DẤU PHẨY
+                local keyStrings = string.split(rawText, ",")
+                local validKeyCount = 0
+                
+                for _, keyStr in ipairs(keyStrings) do
+                    -- Xóa khoảng trắng và bóc tách chữ
+                    local cleanStr = string.upper(string.gsub(keyStr, "%s+", ""))
+                    if cleanStr ~= "" then
+                        -- Dò trong Từ điển KeyMap thông minh
+                        local keyCodeEnum = KeyMap[cleanStr]
+                        
+                        if keyCodeEnum then
+                            validKeyCount = validKeyCount + 1
+                            -- Tạo ID riêng để Server không ghi đè lệnh (VD: Forward_1, Forward_2)
+                            local uniqueId = row.Name .. "_" .. tostring(validKeyCount)
+                            actionTable[uniqueId] = { bindInstance }
+                            keycodeTable[uniqueId] = keyCodeEnum.Value
+                            hasData = true
+                        end
+                    end
                 end
             end
         end
     end
 
     if not hasData then
-        BtnSubmit.Text = "❌ HÃY NHẬP ÍT NHẤT 1 PHÍM!"
+        BtnSubmit.Text = "❌ LỖI: SAI TÊN PHÍM!"
         task.delay(1.5, function() BtnSubmit.Text = "⚡ TIẾN HÀNH NỐI MẠCH" end)
         return
     end
@@ -308,7 +320,7 @@ BtnSubmit.Activated:Connect(function()
             BtnSubmit.BackgroundColor3 = Color3.fromRGB(231, 76, 60)
         end)
     else
-        BtnSubmit.Text = "❌ LỖI GỬI LỆNH MẠCH!"
+        BtnSubmit.Text = "❌ LỖI GỬI LỆNH!"
         task.delay(1.5, function() BtnSubmit.Text = "⚡ TIẾN HÀNH NỐI MẠCH" end)
     end
 end)
