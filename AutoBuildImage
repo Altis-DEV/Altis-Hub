@@ -1,0 +1,303 @@
+local Players = game:GetService("Players")
+local CoreGui = game:GetService("CoreGui")
+local player = Players.LocalPlayer
+
+-- ========================================================
+-- 1. BỘ GIẢI MÃ ẢNH BMP
+-- ========================================================
+local function DecodeBMP(bmpData)
+    local offset = string.unpack("<I4", bmpData, 11)
+    local width  = string.unpack("<i4", bmpData, 19)
+    local height = string.unpack("<i4", bmpData, 23)
+    local bpp    = string.unpack("<I2", bmpData, 29)
+    
+    if bpp ~= 24 and bpp ~= 32 then return nil, "Chỉ hỗ trợ BMP 24/32bit" end
+
+    local pixels = {}
+    local rowBytes = math.floor((bpp * width + 31) / 32) * 4 
+
+    for y = 0, height - 1 do
+        pixels[y + 1] = {}
+        local rowOffset = offset + (height - 1 - y) * rowBytes + 1
+        for x = 0, width - 1 do
+            local byteOffset = rowOffset + x * (bpp / 8)
+            local b, g, r
+            if bpp == 24 then
+                b, g, r = string.unpack("BBB", bmpData, byteOffset)
+            else
+                b, g, r, _ = string.unpack("BBBB", bmpData, byteOffset)
+            end
+            pixels[y + 1][x + 1] = Color3.fromRGB(r, g, b)
+        end
+    end
+    return width, height, pixels
+end
+
+-- ========================================================
+-- 2. THIẾT KẾ GIAO DIỆN (COMPACT UI)
+-- ========================================================
+if CoreGui:FindFirstChild("WallBuilderUI") then
+    CoreGui.WallBuilderUI:Destroy()
+end
+
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "WallBuilderUI"
+ScreenGui.Parent = CoreGui
+
+local MainFrame = Instance.new("Frame")
+MainFrame.Size = UDim2.new(0, 230, 0, 280)
+MainFrame.Position = UDim2.new(0.5, -115, 0.5, -140)
+MainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
+MainFrame.BorderSizePixel = 0
+MainFrame.Parent = ScreenGui
+MainFrame.Active = true
+MainFrame.Draggable = true
+
+Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 8)
+
+local Title = Instance.new("TextLabel")
+Title.Size = UDim2.new(1, -30, 0, 35)
+Title.Position = UDim2.new(0, 10, 0, 0)
+Title.BackgroundTransparency = 1
+Title.Text = "🖨️ IN 3D SIÊU TỐC V2"
+Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+Title.Font = Enum.Font.GothamBold
+Title.TextSize = 14
+Title.TextXAlignment = Enum.TextXAlignment.Left
+Title.Parent = MainFrame
+
+local CloseBtn = Instance.new("TextButton")
+CloseBtn.Size = UDim2.new(0, 25, 0, 25)
+CloseBtn.Position = UDim2.new(1, -30, 0, 5)
+CloseBtn.BackgroundColor3 = Color3.fromRGB(220, 50, 50)
+CloseBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+CloseBtn.Text = "X"
+CloseBtn.Font = Enum.Font.GothamBold
+CloseBtn.TextSize = 12
+CloseBtn.Parent = MainFrame
+Instance.new("UICorner", CloseBtn).CornerRadius = UDim.new(0, 5)
+CloseBtn.MouseButton1Click:Connect(function() ScreenGui:Destroy() end)
+
+local function createInput(name, placeholder, posY, defaultText)
+    local TextBox = Instance.new("TextBox")
+    TextBox.Name = name
+    TextBox.Size = UDim2.new(0.9, 0, 0, 30)
+    TextBox.Position = UDim2.new(0.05, 0, 0, posY)
+    TextBox.BackgroundColor3 = Color3.fromRGB(45, 45, 50)
+    TextBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+    TextBox.PlaceholderText = placeholder
+    TextBox.Text = defaultText
+    TextBox.Font = Enum.Font.Gotham
+    TextBox.TextSize = 13
+    TextBox.ClearTextOnFocus = false
+    TextBox.TextWrapped = false 
+    TextBox.TextTruncate = Enum.TextTruncate.AtEnd 
+    TextBox.Parent = MainFrame
+    Instance.new("UICorner", TextBox).CornerRadius = UDim.new(0, 5)
+    return TextBox
+end
+
+local RowInput = createInput("RowInput", "Số Hàng (VD: 8)", 40, "8")
+local ColInput = createInput("ColInput", "Số Cột (VD: 8)", 75, "8")
+local SizeInput = createInput("SizeInput", "Kích Thước (VD: 2)", 110, "2")
+local UrlInput = createInput("UrlInput", "Link BMP (Để trống nếu ko tô)", 145, "")
+UrlInput.TextXAlignment = Enum.TextXAlignment.Left
+
+local BuildButton = Instance.new("TextButton")
+BuildButton.Size = UDim2.new(0.9, 0, 0, 35)
+BuildButton.Position = UDim2.new(0.05, 0, 0, 190)
+BuildButton.BackgroundColor3 = Color3.fromRGB(40, 200, 100)
+BuildButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+BuildButton.Text = "XÂY DỰNG TỐC ĐỘ CAO"
+BuildButton.Font = Enum.Font.GothamBold
+BuildButton.TextSize = 14
+BuildButton.Parent = MainFrame
+Instance.new("UICorner", BuildButton).CornerRadius = UDim.new(0, 5)
+
+local StatusText = Instance.new("TextLabel")
+StatusText.Size = UDim2.new(1, 0, 0, 30)
+StatusText.Position = UDim2.new(0, 0, 0, 235)
+StatusText.BackgroundTransparency = 1
+StatusText.Text = "Sẵn sàng hoạt động..."
+StatusText.TextColor3 = Color3.fromRGB(200, 200, 200)
+StatusText.Font = Enum.Font.Gotham
+StatusText.TextSize = 12
+StatusText.Parent = MainFrame
+
+-- ========================================================
+-- 3. CẤU HÌNH SIÊU TỐC (TWEAK PARAMETERS)
+-- ========================================================
+local WORKER_THREADS = 60  -- Số lượng luồng gửi song song (Mặc định cũ là tạo vô hạn, giờ gom về 60 để tối ưu băng thông CPU)
+local MAX_PRESSURE = 350   -- Nâng hạn mức van điều áp từ 150 lên 350 khối giúp đẩy nhanh tiến độ mạng khi có Ping cao
+
+-- ========================================================
+-- 4. LOGIC XỬ LÝ CHÍNH
+-- ========================================================
+BuildButton.MouseButton1Click:Connect(function()
+    local character = player.Character
+    if not character or not character:FindFirstChild("HumanoidRootPart") then return end
+    
+    local rootPart = character.HumanoidRootPart
+    local blockFolder = workspace.Blocks:FindFirstChild(player.Name)
+    if not blockFolder then StatusText.Text = "❌ Không tìm thấy Plot!" return end
+
+    local ROWS = tonumber(RowInput.Text) or 8
+    local COLUMNS = tonumber(ColInput.Text) or 8
+    local TOTAL_BLOCKS = ROWS * COLUMNS
+    local BLOCK_SIZE = tonumber(SizeInput.Text) or 2
+    local BMP_URL = UrlInput.Text
+    local useImage = BMP_URL ~= ""
+    local newSizeVec = Vector3.new(BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE)
+
+    -- Xác định xem hệ thống có cần bật Radar kiểm soát không
+    local needRadar = (BLOCK_SIZE ~= 2) or useImage
+
+    local buildTool = player.Backpack:FindFirstChild("BuildingTool") or character:FindFirstChild("BuildingTool")
+    local scaleTool = player.Backpack:FindFirstChild("ScalingTool") or character:FindFirstChild("ScalingTool")
+    local paintTool = player.Backpack:FindFirstChild("PaintingTool") or character:FindFirstChild("PaintingTool")
+
+    if not buildTool or (BLOCK_SIZE ~= 2 and not scaleTool) then StatusText.Text = "❌ Thiếu Tool cần thiết!" return end
+    if useImage and not paintTool then StatusText.Text = "❌ Thiếu Sơn để tô màu!" return end
+
+    buildTool.Parent = character
+    if scaleTool then scaleTool.Parent = character end
+    if useImage then paintTool.Parent = character end
+
+    local buildRemote = buildTool:WaitForChild("RF")
+    local scaleRemote = scaleTool and scaleTool:WaitForChild("RF") or nil
+    local paintRemote = useImage and paintTool:WaitForChild("RF") or nil
+
+    local imgWidth, imgHeight, ImageMatrix
+    if useImage then
+        StatusText.Text = "⏳ Đang tải ảnh..."
+        local success, response = pcall(function() return game:HttpGetAsync(BMP_URL) end)
+        if not success then StatusText.Text = "❌ Lỗi: Link ảnh không hợp lệ!" return end
+        
+        imgWidth, imgHeight, ImageMatrix = DecodeBMP(response)
+        if not ImageMatrix then StatusText.Text = "❌ Lỗi: Không phải BMP!" return end
+    end
+
+    BuildButton.Text = "ĐANG XỬ LÝ..."
+    BuildButton.BackgroundColor3 = Color3.fromRGB(150, 150, 150)
+    BuildButton.AutoButtonColor = false
+
+    local look = rootPart.CFrame.LookVector
+    local snapLook = math.abs(look.X) > math.abs(look.Z) and Vector3.new(math.sign(look.X), 0, 0) or Vector3.new(0, 0, math.sign(look.Z))
+    local rawStartPos = rootPart.Position + (snapLook * 15)
+    local startPos = Vector3.new(math.round(rawStartPos.X / BLOCK_SIZE) * BLOCK_SIZE, math.round(rawStartPos.Y / BLOCK_SIZE) * BLOCK_SIZE, math.round(rawStartPos.Z / BLOCK_SIZE) * BLOCK_SIZE)
+    local baseCFrame = CFrame.lookAt(startPos, startPos + snapLook)
+
+    local paintQueue = {}
+    local processedCount = 0
+
+    -- ========================================================
+    -- CHẾ ĐỘ NÂNG CẤP: RADAR QUÉT KHỐI (CHỈ BẬT KHI CẦN)
+    -- ========================================================
+    local connection
+    if needRadar then
+        connection = blockFolder.ChildAdded:Connect(function(newBlock)
+            if newBlock:IsA("Model") and (newBlock.Name == "PlasticBlock" or newBlock.Name:match("Block")) then
+                task.spawn(function()
+                    local pivot = newBlock:GetPivot()
+                    local localPos = baseCFrame:ToObjectSpace(pivot).Position
+                    local c = math.floor(localPos.X / BLOCK_SIZE + 0.5)
+                    local r = math.floor(localPos.Y / BLOCK_SIZE + 0.5)
+                    
+                    if c >= 0 and c < COLUMNS and r >= 0 and r < ROWS then
+                        -- Chỉ scale nếu kích thước khác mặc định (khác 2)
+                        if BLOCK_SIZE ~= 2 and scaleRemote then
+                            pcall(function() scaleRemote:InvokeServer(newBlock, newSizeVec, pivot) end)
+                        end
+                        
+                        -- Chỉ gom màu nếu có ảnh
+                        if useImage and ImageMatrix then
+                            local sampleX = math.clamp(math.floor((c / COLUMNS) * imgWidth) + 1, 1, imgWidth)
+                            local sampleY = math.clamp(math.floor(((ROWS - 1 - r) / ROWS) * imgHeight) + 1, 1, imgHeight)
+                            local color = ImageMatrix[sampleY][sampleX]
+                            
+                            table.insert(paintQueue, {newBlock, color})
+                            if #paintQueue >= 100 then
+                                local currentQueue = paintQueue
+                                paintQueue = {}
+                                task.spawn(function() pcall(function() paintRemote:InvokeServer(currentQueue) end) end)
+                            end
+                        end
+                        processedCount = processedCount + 1
+                    end
+                end)
+            end
+        end)
+    end
+
+    -- ========================================================
+    -- THIẾT KẾ MỚI: HÀNG ĐỢI XÂY DỰNG & BỂ CHỨA CÔNG NHÂN (WORKER POOL)
+    -- ========================================================
+    local buildQueue = {}
+    for r = 0, ROWS - 1 do
+        for c = 0, COLUMNS - 1 do
+            table.insert(buildQueue, baseCFrame * CFrame.new(c * BLOCK_SIZE, r * BLOCK_SIZE, 0))
+        end
+    end
+
+    StatusText.Text = "🚀 Đang kích nổ luồng xây..."
+    local queueIndex = 1
+    local blockValue = player.Data.PlasticBlock.Value
+
+    -- Tạo ra số lượng Worker cố định chạy song song rút việc từ hàng đợi
+    for i = 1, WORKER_THREADS do
+        task.spawn(function()
+            while queueIndex <= TOTAL_BLOCKS do
+                -- Áp dụng van điều áp động (Chỉ kích hoạt nếu cần kiểm soát Scale/Sơn)
+                if needRadar then
+                    while (queueIndex - processedCount) > MAX_PRESSURE do
+                        task.wait(0.01) -- Đợi cực ngắn để đồng bộ mạng
+                    end
+                end
+
+                local targetCFrame = buildQueue[queueIndex]
+                if not targetCFrame then break end
+                queueIndex = queueIndex + 1 -- Chuyển sang khối tiếp theo (Atomic pointer)
+
+                -- Bắn lệnh tạo khối thẳng lên Server
+                pcall(function()
+                    buildRemote:InvokeServer("PlasticBlock", blockValue, nil, nil, true, targetCFrame, false)
+                end)
+            end
+        end)
+    end
+
+    -- ========================================================
+    -- BỘ GIÁM SÁT TIẾN ĐỘ
+    -- ========================================================
+    if needRadar then
+        local stuckTimer = 0
+        local lastCount = 0
+        while processedCount < TOTAL_BLOCKS do
+            StatusText.Text = "⏳ Tiến độ xử lý: " .. processedCount .. "/" .. TOTAL_BLOCKS
+            task.wait(0.2)
+            if processedCount == lastCount then
+                stuckTimer = stuckTimer + 0.2
+                if stuckTimer >= 6 then break end
+            else
+                stuckTimer = 0
+                lastCount = processedCount
+            end
+        end
+        if connection then connection:Disconnect() end
+        if useImage and #paintQueue > 0 then
+            pcall(function() paintRemote:InvokeServer(paintQueue) end)
+        end
+    else
+        -- Chế độ Siêu Tốc Thuần Túy: Chỉ đợi hàng đợi rỗng, bỏ qua đồng bộ lag
+        while queueIndex <= TOTAL_BLOCKS do
+            StatusText.Text = "⚡ Đang bắn khối: " .. queueIndex .. "/" .. TOTAL_BLOCKS
+            task.wait(0.1)
+        end
+        task.wait(0.5) -- Đợi Server cập nhật nốt các gói cuối
+    end
+
+    StatusText.Text = "✅ ĐÃ XÂY XONG HOÀN TOÀN!"
+    BuildButton.Text = "XÂY DỰNG TỐC ĐỘ CAO"
+    BuildButton.BackgroundColor3 = Color3.fromRGB(40, 200, 100)
+    BuildButton.AutoButtonColor = true
+end)
