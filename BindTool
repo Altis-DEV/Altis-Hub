@@ -9,7 +9,7 @@ local Name = LocalPlayer.Name
 local Mouse = LocalPlayer:GetMouse()
 
 -- ==========================================
--- TẠO TỪ ĐIỂN PHÍM THÔNG MINH (Hỗ trợ viết hoa/thường)
+-- TẠO TỪ ĐIỂN PHÍM THÔNG MINH
 -- ==========================================
 local KeyMap = {}
 for _, enumItem in ipairs(Enum.KeyCode:GetEnumItems()) do
@@ -17,7 +17,7 @@ for _, enumItem in ipairs(Enum.KeyCode:GetEnumItems()) do
 end
 
 -- ==========================================
--- 1. KHỞI TẠO GIAO DIỆN NHỎ GỌN
+-- 1. KHỞI TẠO GIAO DIỆN (MỞ RỘNG ĐỂ CHỨA NÚT RESET)
 -- ==========================================
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "MobileKeybindMapperUltimate"
@@ -26,7 +26,7 @@ ScreenGui.Parent = game:GetService("CoreGui")
 
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
-MainFrame.Size = UDim2.new(0, 240, 0, 340)
+MainFrame.Size = UDim2.new(0, 240, 0, 370) -- Tăng chiều cao lên 370px
 MainFrame.Position = UDim2.new(0.05, 0, 0.2, 0)
 MainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
 MainFrame.BorderSizePixel = 0
@@ -43,12 +43,12 @@ UIStroke.Color = Color3.fromRGB(60, 60, 60)
 UIStroke.Thickness = 1.2
 UIStroke.Parent = MainFrame
 
--- Thanh Tiêu Đề (Topbar)
+-- Thanh Tiêu Đề
 local TitleLabel = Instance.new("TextLabel")
 TitleLabel.Name = "TitleLabel"
 TitleLabel.Size = UDim2.new(1, 0, 0, 35)
 TitleLabel.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-TitleLabel.Text = " 🔌 KEYBIND MAPPER"
+TitleLabel.Text = " 🔌 KEYBIND MAPPER PRO"
 TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 TitleLabel.TextSize = 12
 TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
@@ -56,7 +56,6 @@ TitleLabel.Font = Enum.Font.SourceSansBold
 TitleLabel.Parent = MainFrame
 Instance.new("UICorner", TitleLabel).CornerRadius = UDim.new(0, 8)
 
--- Nút Thu Nhỏ (Minimize)
 local MinBtn = Instance.new("TextButton")
 MinBtn.Name = "MinimizeButton"
 MinBtn.Size = UDim2.new(0, 25, 0, 25)
@@ -69,30 +68,43 @@ MinBtn.Font = Enum.Font.SourceSansBold
 MinBtn.Parent = TitleLabel
 Instance.new("UICorner", MinBtn).CornerRadius = UDim.new(0, 6)
 
--- Các Nút Chọn Khối
+-- Nút Chọn Ghế Điều Khiển
 local BtnController = Instance.new("TextButton")
 BtnController.Size = UDim2.new(0, 210, 0, 30)
-BtnController.Position = UDim2.new(0.5, -105, 0, 45)
+BtnController.Position = UDim2.new(0.5, -105, 0, 42)
 BtnController.BackgroundColor3 = Color3.fromRGB(44, 62, 80)
-BtnController.Text = "🎮 Chọn Ghế / Công Tắc"
+BtnController.Text = "🎮 1. Chọn Ghế / Công Tắc"
 BtnController.TextColor3 = Color3.fromRGB(255, 255, 255)
 BtnController.Font = Enum.Font.SourceSansBold
 BtnController.TextSize = 13
 BtnController.Parent = MainFrame
 Instance.new("UICorner", BtnController).CornerRadius = UDim.new(0, 5)
 
+-- Nút Chọn Đa Mục Tiêu (Toggle)
 local BtnTarget = Instance.new("TextButton")
 BtnTarget.Size = UDim2.new(0, 210, 0, 30)
-BtnTarget.Position = UDim2.new(0.5, -105, 0, 80)
+BtnTarget.Position = UDim2.new(0.5, -105, 0, 77)
 BtnTarget.BackgroundColor3 = Color3.fromRGB(44, 62, 80)
-BtnTarget.Text = "📦 Chọn Khối Cần Kích Hoạt"
+BtnTarget.Text = "📦 2. Bật Chọn Đa Khối Mục Tiêu"
 BtnTarget.TextColor3 = Color3.fromRGB(255, 255, 255)
 BtnTarget.Font = Enum.Font.SourceSansBold
 BtnTarget.TextSize = 13
 BtnTarget.Parent = MainFrame
 Instance.new("UICorner", BtnTarget).CornerRadius = UDim.new(0, 5)
 
--- Hàng nhập phím (Đã đổi Placeholder gợi ý dùng dấu phẩy)
+-- NÚT RESET KHỐI MỤC TIÊU
+local BtnResetTargets = Instance.new("TextButton")
+BtnResetTargets.Size = UDim2.new(0, 210, 0, 20)
+BtnResetTargets.Position = UDim2.new(0.5, -105, 0, 112)
+BtnResetTargets.BackgroundColor3 = Color3.fromRGB(192, 57, 43)
+BtnResetTargets.Text = "🗑️ Reset Khối Đã Chọn (0)"
+BtnResetTargets.TextColor3 = Color3.fromRGB(255, 255, 255)
+BtnResetTargets.Font = Enum.Font.SourceSansBold
+BtnResetTargets.TextSize = 11
+BtnResetTargets.Parent = MainFrame
+Instance.new("UICorner", BtnResetTargets).CornerRadius = UDim.new(0, 4)
+
+-- Hàng nhập phím
 local bindRows = {
     {Name = "Forward", Display = "Tiến (Forward):", Fallbacks = {"BindUp", "BindForward"}},
     {Name = "Backward", Display = "Lùi (Backward):", Fallbacks = {"BindDown", "BindBackward"}},
@@ -102,7 +114,7 @@ local bindRows = {
 }
 
 local textBoxes = {}
-local startY = 120
+local startY = 142 -- Đẩy các ô xuống để nhường chỗ cho nút Reset
 
 for i, rowData in ipairs(bindRows) do
     local Label = Instance.new("TextLabel")
@@ -124,7 +136,7 @@ for i, rowData in ipairs(bindRows) do
     TextBox.TextColor3 = Color3.fromRGB(254, 202, 87)
     TextBox.TextSize = 13
     TextBox.Font = Enum.Font.SourceSansBold
-    TextBox.PlaceholderText = "VD: Q, E" -- Gợi ý đa phím
+    TextBox.PlaceholderText = "VD: Q, E"
     TextBox.PlaceholderColor3 = Color3.fromRGB(70, 70, 70)
     TextBox.ClearTextOnFocus = false
     TextBox.Parent = MainFrame
@@ -137,7 +149,7 @@ end
 -- Nút Submit
 local BtnSubmit = Instance.new("TextButton")
 BtnSubmit.Size = UDim2.new(0, 210, 0, 35)
-BtnSubmit.Position = UDim2.new(0.5, -105, 0, 290)
+BtnSubmit.Position = UDim2.new(0.5, -105, 0, 320)
 BtnSubmit.BackgroundColor3 = Color3.fromRGB(231, 76, 60)
 BtnSubmit.Text = "⚡ TIẾN HÀNH NỐI MẠCH"
 BtnSubmit.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -152,7 +164,7 @@ Instance.new("UICorner", BtnSubmit).CornerRadius = UDim.new(0, 5)
 local isMinimized = false
 MinBtn.Activated:Connect(function()
     isMinimized = not isMinimized
-    local targetSize = isMinimized and UDim2.new(0, 240, 0, 35) or UDim2.new(0, 240, 0, 340)
+    local targetSize = isMinimized and UDim2.new(0, 240, 0, 35) or UDim2.new(0, 240, 0, 370)
     MinBtn.Text = isMinimized and "+" or "−"
     MinBtn.BackgroundColor3 = isMinimized and Color3.fromRGB(46, 204, 113) or Color3.fromRGB(45, 45, 45)
     TweenService:Create(MainFrame, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = targetSize}):Play()
@@ -180,28 +192,60 @@ UserInputService.InputChanged:Connect(function(input)
 end)
 
 -- ==========================================
--- 3. XỬ LÝ CHỌN KHỐI 3D
+-- 3. XỬ LÝ CHỌN KHỐI 3D (ĐA MỤC TIÊU)
 -- ==========================================
-local selectingMode = nil
+local selectingMode = nil -- Chỉ dùng cho Ghế lái
+local isSelectingTargets = false -- Toggle cho chế độ gom Khối
 local selectedController = nil
-local selectedTarget = nil
+local selectedTargets = {} -- Bảng chứa nhiều khối mục tiêu
 
-local function setSelectionMode(mode)
-    selectingMode = mode
-    if mode == "Controller" then
-        BtnController.Text = "🎯 Chọn ghế lái/công tắc..."
-        BtnController.BackgroundColor3 = Color3.fromRGB(230, 126, 34)
-    elseif mode == "Target" then
-        BtnTarget.Text = "🎯 Chọn khối chức năng..."
+local function updateTargetUI()
+    BtnResetTargets.Text = "🗑️ Reset Khối Đã Chọn (" .. #selectedTargets .. ")"
+    if isSelectingTargets then
+        BtnTarget.Text = "🟢 Đang chọn... (" .. #selectedTargets .. ") [Bấm Dừng]"
         BtnTarget.BackgroundColor3 = Color3.fromRGB(230, 126, 34)
+    else
+        if #selectedTargets > 0 then
+            BtnTarget.Text = "✅ Đã chốt " .. #selectedTargets .. " khối"
+            BtnTarget.BackgroundColor3 = Color3.fromRGB(46, 204, 113)
+        else
+            BtnTarget.Text = "📦 2. Bật Chọn Đa Khối Mục Tiêu"
+            BtnTarget.BackgroundColor3 = Color3.fromRGB(44, 62, 80)
+        end
     end
 end
 
-BtnController.Activated:Connect(function() setSelectionMode("Controller") end)
-BtnTarget.Activated:Connect(function() setSelectionMode("Target") end)
+BtnController.Activated:Connect(function()
+    selectingMode = "Controller"
+    isSelectingTargets = false
+    updateTargetUI()
+    
+    BtnController.Text = "🎯 Chọn ghế lái/công tắc..."
+    BtnController.BackgroundColor3 = Color3.fromRGB(230, 126, 34)
+end)
+
+BtnTarget.Activated:Connect(function()
+    selectingMode = nil -- Hủy chế độ chọn ghế nếu đang bật
+    if selectedController then
+        BtnController.Text = "✅ Ghế: " .. selectedController.Name
+        BtnController.BackgroundColor3 = Color3.fromRGB(46, 204, 113)
+    else
+        BtnController.Text = "🎮 1. Chọn Ghế / Công Tắc"
+        BtnController.BackgroundColor3 = Color3.fromRGB(44, 62, 80)
+    end
+    
+    -- Chuyển đổi trạng thái Đang gom / Ngừng gom
+    isSelectingTargets = not isSelectingTargets
+    updateTargetUI()
+end)
+
+BtnResetTargets.Activated:Connect(function()
+    selectedTargets = {}
+    updateTargetUI()
+end)
 
 Mouse.Button1Down:Connect(function()
-    if not selectingMode then return end
+    if not selectingMode and not isSelectingTargets then return end
     local target = Mouse.Target
     if not target then return end
     
@@ -216,17 +260,26 @@ Mouse.Button1Down:Connect(function()
             selectedController = current
             BtnController.Text = "✅ Ghế: " .. current.Name
             BtnController.BackgroundColor3 = Color3.fromRGB(46, 204, 113)
-        elseif selectingMode == "Target" then
-            selectedTarget = current
-            BtnTarget.Text = "✅ Khối: " .. current.Name
-            BtnTarget.BackgroundColor3 = Color3.fromRGB(46, 204, 113)
+            selectingMode = nil
+            
+        elseif isSelectingTargets then
+            -- Chế độ Đa mục tiêu: Kiểm tra xem đã lưu khối này chưa
+            local alreadyExists = false
+            for _, t in ipairs(selectedTargets) do
+                if t == current then alreadyExists = true break end
+            end
+            
+            -- Nếu chưa có thì thêm vào danh sách
+            if not alreadyExists then
+                table.insert(selectedTargets, current)
+                updateTargetUI()
+            end
         end
-        selectingMode = nil
     end
 end)
 
 -- ==========================================
--- 4. XỬ LÝ THUẬT TOÁN ĐA PHÍM & GỬI LÊN SERVER
+-- 4. ĐÓNG GÓI DỮ LIỆU ĐA MỤC TIÊU & GỬI SERVER
 -- ==========================================
 local function findBindInstance(block, fallbacks)
     for _, childName in ipairs(fallbacks) do
@@ -258,8 +311,8 @@ BtnSubmit.Activated:Connect(function()
         return
     end
     
-    if not selectedController or not selectedTarget then
-        BtnSubmit.Text = "❌ CHƯA CHỌN ĐỦ KHỐI!"
+    if not selectedController or #selectedTargets == 0 then
+        BtnSubmit.Text = "❌ CHƯA CHỌN ĐỦ KHỐI/GHẾ!"
         task.delay(1.5, function() BtnSubmit.Text = "⚡ TIẾN HÀNH NỐI MẠCH" end)
         return
     end
@@ -271,28 +324,36 @@ BtnSubmit.Activated:Connect(function()
     local keycodeTable = {}
     local hasData = false
 
+    -- Quét qua từng ô Textbox
     for _, row in ipairs(bindRows) do
         local rawText = textBoxes[row.Name].Text
         if rawText and rawText ~= "" then
-            local bindInstance = findBindInstance(selectedTarget, row.Fallbacks)
             
-            if bindInstance then
-                -- CẮT CHUỖI ĐA PHÍM BẰNG DẤU PHẨY
+            -- Thu thập tất cả instance chức năng từ NHIỀU khối mục tiêu
+            local bindInstancesForThisKey = {}
+            for _, targetBlock in ipairs(selectedTargets) do
+                local bindInstance = findBindInstance(targetBlock, row.Fallbacks)
+                if bindInstance then
+                    table.insert(bindInstancesForThisKey, bindInstance)
+                end
+            end
+            
+            -- Nếu có ít nhất 1 khối bắt được lệnh kết nối
+            if #bindInstancesForThisKey > 0 then
+                -- Cắt chuỗi đa phím
                 local keyStrings = string.split(rawText, ",")
                 local validKeyCount = 0
                 
                 for _, keyStr in ipairs(keyStrings) do
-                    -- Xóa khoảng trắng và bóc tách chữ
                     local cleanStr = string.upper(string.gsub(keyStr, "%s+", ""))
                     if cleanStr ~= "" then
-                        -- Dò trong Từ điển KeyMap thông minh
                         local keyCodeEnum = KeyMap[cleanStr]
-                        
                         if keyCodeEnum then
                             validKeyCount = validKeyCount + 1
-                            -- Tạo ID riêng để Server không ghi đè lệnh (VD: Forward_1, Forward_2)
                             local uniqueId = row.Name .. "_" .. tostring(validKeyCount)
-                            actionTable[uniqueId] = { bindInstance }
+                            
+                            -- Đưa toản bộ MẢNG các instance vào actionTable (Tính năng Gộp dây siêu tốc)
+                            actionTable[uniqueId] = bindInstancesForThisKey
                             keycodeTable[uniqueId] = keyCodeEnum.Value
                             hasData = true
                         end
@@ -303,18 +364,24 @@ BtnSubmit.Activated:Connect(function()
     end
 
     if not hasData then
-        BtnSubmit.Text = "❌ LỖI: SAI TÊN PHÍM!"
+        BtnSubmit.Text = "❌ LỖI: SAI TÊN PHÍM HOẶC KHỐI!"
         task.delay(1.5, function() BtnSubmit.Text = "⚡ TIẾN HÀNH NỐI MẠCH" end)
         return
     end
 
+    -- Bắn luồng Server (Giả lập PC chuẩn)
     local success, err = pcall(function()
         RF:InvokeServer(actionTable, selectedController, keycodeTable, false, false)
     end)
 
     if success then
         BtnSubmit.BackgroundColor3 = Color3.fromRGB(46, 204, 113)
-        BtnSubmit.Text = "✅ THÀNH CÔNG!"
+        BtnSubmit.Text = "✅ ĐÃ NỐI XONG (" .. #selectedTargets .. " Khối)!"
+        
+        -- Tự động ngắt chế độ chọn sau khi nối xong cho an toàn
+        isSelectingTargets = false
+        updateTargetUI()
+        
         task.delay(1.5, function() 
             BtnSubmit.Text = "⚡ TIẾN HÀNH NỐI MẠCH" 
             BtnSubmit.BackgroundColor3 = Color3.fromRGB(231, 76, 60)
