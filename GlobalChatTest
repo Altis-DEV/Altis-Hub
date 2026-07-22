@@ -1,4 +1,4 @@
--- Altis Hub - Global Chat V24 (Custom Scale Variables, Square Image Ratio, Notifications)
+-- Altis Hub - Global Chat V26 (ImageFrame + ImageLabel System & Timestamp)
 local Players = game:GetService("Players")
 local HttpService = game:GetService("HttpService")
 local CoreGui = game:GetService("CoreGui")
@@ -9,11 +9,10 @@ local LocalPlayer = Players.LocalPlayer
 local http_request = (syn and syn.request) or (http and http.request) or request or function() warn("Executor không hỗ trợ HTTP") return nil end
 
 ---------------------------------------------------
--- TÙY CHỈNH KÍCH THƯỚC UI (DỄ DÀNG CHỈNH SỬA)
+-- TÙY CHỈNH KÍCH THƯỚC UI
 ---------------------------------------------------
-local UI_WIDTH_SCALE = 0.4   -- 40% chiều ngang màn hình
-local UI_HEIGHT_SCALE = 0.6  -- 60% chiều dọc màn hình
-local IMAGE_SIZE_RATIO = 0.5 -- Ảnh chiếm 50% chiều ngang khung chat (đổi thành 0.05 nếu muốn 5%)
+local UI_WIDTH_SCALE = 0.4
+local UI_HEIGHT_SCALE = 0.6
 
 ---------------------------------------------------
 -- CẤU TRÚC FIREBASE & HỆ THỐNG ROLE
@@ -86,18 +85,17 @@ local function getCacheAsset(url)
 end
 
 ---------------------------------------------------
--- KHỞI TẠO GIAO DIỆN (SỬ DỤNG BIẾN SCALE & CĂN GIỮA)
+-- KHỞI TẠO GIAO DIỆN
 ---------------------------------------------------
-for _, v in ipairs(CoreGui:GetChildren()) do if v.Name == "AltisGlobal_V24" then v:Destroy() end end
+for _, v in ipairs(CoreGui:GetChildren()) do if v.Name == "AltisGlobal_V26" then v:Destroy() end end
 
 local GUI = Instance.new("ScreenGui", gethui and gethui() or CoreGui)
-GUI.Name = "AltisGlobal_V24"
+GUI.Name = "AltisGlobal_V26"
 GUI.ResetOnSpawn = false
 pcall(function() syn.protect_gui(GUI) end)
 
 local MainFrame = Instance.new("Frame", GUI)
 MainFrame.Size = UDim2.new(UI_WIDTH_SCALE, 0, UI_HEIGHT_SCALE, 0) 
--- Tính toán vị trí để luôn nằm giữa màn hình
 MainFrame.Position = UDim2.new((1 - UI_WIDTH_SCALE)/2, 0, (1 - UI_HEIGHT_SCALE)/2, 0)
 MainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 35); MainFrame.BorderSizePixel = 0
 Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 8)
@@ -111,7 +109,7 @@ Topbar.ZIndex = 10; Instance.new("UICorner", Topbar).CornerRadius = UDim.new(0, 
 
 local Title = Instance.new("TextLabel", Topbar)
 Title.Size = UDim2.new(1, -45, 1, 0); Title.Position = UDim2.new(0, 10, 0, 0)
-Title.BackgroundTransparency = 1; Title.Text = "Altis Hub - Global Chat V24"
+Title.BackgroundTransparency = 1; Title.Text = "Altis Hub - Global Chat V26"
 Title.TextColor3 = Color3.fromRGB(255, 255, 255); Title.Font = Enum.Font.GothamBold; Title.TextSize = 14
 Title.TextXAlignment = Enum.TextXAlignment.Left; Title.ZIndex = 10
 
@@ -259,14 +257,16 @@ local MsgBox = Instance.new("TextBox", InputContainer)
 MsgBox.Size = UDim2.new(1, -95, 0, 35); MsgBox.Position = UDim2.new(0, 10, 0, 5)
 MsgBox.BackgroundColor3 = Color3.fromRGB(45, 45, 50); MsgBox.TextColor3 = Color3.fromRGB(255, 255, 255)
 MsgBox.PlaceholderText = "Nhập tin nhắn hoặc lệnh (bắt đầu bằng /)..."
-MsgBox.Font = Enum.Font.Gotham; MsgBox.TextSize = 13; MsgBox.ClearTextOnFocus = true; MsgBox.TextWrapped = true; MsgBox.TextXAlignment = Enum.TextXAlignment.Left
+MsgBox.Font = Enum.Font.Gotham; MsgBox.TextSize = 13; MsgBox.TextWrapped = true; MsgBox.TextXAlignment = Enum.TextXAlignment.Left
+MsgBox.ClearTextOnFocus = false -- Set lại thành false theo yêu cầu
 Instance.new("UICorner", MsgBox).CornerRadius = UDim.new(0, 6); Instance.new("UIPadding", MsgBox).PaddingLeft = UDim.new(0, 10)
 
 local ImgBox = Instance.new("TextBox", InputContainer)
 ImgBox.Size = UDim2.new(1, -95, 0, 35); ImgBox.Position = UDim2.new(0, 10, 0, 45)
 ImgBox.BackgroundColor3 = Color3.fromRGB(45, 45, 50); ImgBox.TextColor3 = Color3.fromRGB(200, 200, 255)
 ImgBox.PlaceholderText = "Dán link ảnh (.jpg/.png) hoặc rbxassetid://..."
-ImgBox.Font = Enum.Font.Gotham; ImgBox.TextSize = 12; ImgBox.ClearTextOnFocus = true; ImgBox.TextWrapped = true; ImgBox.TextXAlignment = Enum.TextXAlignment.Left
+ImgBox.Font = Enum.Font.Gotham; ImgBox.TextSize = 12; ImgBox.TextWrapped = true; ImgBox.TextXAlignment = Enum.TextXAlignment.Left
+ImgBox.ClearTextOnFocus = false -- Set lại thành false theo yêu cầu
 Instance.new("UICorner", ImgBox).CornerRadius = UDim.new(0, 6); Instance.new("UIPadding", ImgBox).PaddingLeft = UDim.new(0, 10)
 
 local SendBtn = Instance.new("TextButton", InputContainer)
@@ -342,24 +342,33 @@ MinBtn.MouseButton1Click:Connect(function()
 end)
 
 ---------------------------------------------------
--- RENDER TIN NHẮN (ẢNH TỰ ĐỘNG SCALE VUÔNG TỶ LỆ)
+-- RENDER TIN NHẮN (ẢNH FRAME & HIỂN THỊ THỜI GIAN)
 ---------------------------------------------------
 local msgFrames, adminMsgFrames = {}, {}
 
 local function renderMessage(msgData, page, storageTbl)
-    local isSelf = (msgData.username == LocalPlayer.Name)
-    local senderRole = getRole(msgData.username)
+    -- Xử lý an toàn các dữ liệu để không bị lỗi lấy thông tin
+    local uName = msgData.username or "Unknown"
+    local dName = msgData.displayName or "Unknown"
+    local uId = tonumber(msgData.userId) or 1
+    local tStamp = msgData.timestamp or os.time()
+    
+    local isSelf = (uName == LocalPlayer.Name)
+    local senderRole = getRole(uName)
     local senderWeight = RANK_WEIGHTS[senderRole] or 1
     
     local roleStr = (senderRole == "OWNER") and "[👑 OWNER]" or (senderRole == "ADMIN") and "[🛡️ ADMIN]" or "[👤 USER]"
     local canSeeHWID = (myWeight > senderWeight) or isSelf or (myLiveRole == "OWNER")
     
+    -- Format chuỗi thời gian [HH:MM]
+    local timeString = os.date("%H:%M", tStamp)
+    
     if not isInitialLoad and not isSelf then
         pcall(function()
             game:GetService("StarterGui"):SetCore("SendNotification", {
-                Title = "💬 " .. msgData.displayName,
-                Text = (msgData.message ~= "" and msgData.message or "[Đã gửi một hình ảnh]"),
-                Icon = "rbxthumb://type=AvatarHeadShot&id=" .. (tonumber(msgData.userId) or 1) .. "&w=150&h=150",
+                Title = "💬 " .. dName,
+                Text = (msgData.message and msgData.message ~= "" and msgData.message or "[Đã gửi một hình ảnh]"),
+                Icon = "rbxthumb://type=AvatarHeadShot&id=" .. uId .. "&w=150&h=150",
                 Duration = 4
             })
         end)
@@ -379,7 +388,7 @@ local function renderMessage(msgData, page, storageTbl)
     Avatar.Size = UDim2.new(0, 36, 0, 36); Avatar.Position = UDim2.new(0, 0, 0, 0)
     Avatar.BackgroundColor3 = Color3.fromRGB(100,100,100); Avatar.ScaleType = Enum.ScaleType.Crop
     Instance.new("UICorner", Avatar).CornerRadius = UDim.new(1, 0)
-    Avatar.Image = "rbxthumb://type=AvatarHeadShot&id=" .. (tonumber(msgData.userId) or 1) .. "&w=150&h=150"
+    Avatar.Image = "rbxthumb://type=AvatarHeadShot&id=" .. uId .. "&w=150&h=150"
 
     local InfoSection = Instance.new("Frame", TopSection)
     InfoSection.BackgroundTransparency = 1; InfoSection.Size = UDim2.new(1, -45, 1, 0)
@@ -388,11 +397,12 @@ local function renderMessage(msgData, page, storageTbl)
 
     local function addLbl(p, txt, f, s, c)
         local l = Instance.new("TextLabel", p); l.BackgroundTransparency=1; l.Size=UDim2.new(1,0,0,0); l.AutomaticSize=Enum.AutomaticSize.Y
-        l.TextWrapped=true; l.TextXAlignment=Enum.TextXAlignment.Left; l.Text=txt; l.Font=f; l.TextSize=s; l.TextColor3=c; return l
+        l.TextWrapped=true; l.TextXAlignment = Enum.TextXAlignment.Left; l.Text=txt; l.Font=f; l.TextSize=s; l.TextColor3=c; return l
     end
 
-    addLbl(InfoSection, roleStr .. " " .. msgData.displayName, Enum.Font.GothamBold, 13, Color3.fromRGB(240, 240, 240))
-    addLbl(InfoSection, "@" .. msgData.username, Enum.Font.Gotham, 11, Color3.fromRGB(180, 180, 180))
+    -- Thêm Timestamp vào Display Name
+    addLbl(InfoSection, roleStr .. " " .. dName .. " [" .. timeString .. "]", Enum.Font.GothamBold, 13, Color3.fromRGB(240, 240, 240))
+    addLbl(InfoSection, "@" .. uName, Enum.Font.Gotham, 11, Color3.fromRGB(180, 180, 180))
     if canSeeHWID then addLbl(InfoSection, "HWID: " .. (msgData.hwid or "N/A"), Enum.Font.Code, 10, Color3.fromRGB(150, 150, 150)) end
 
     local ContentSection = Instance.new("Frame", Frame)
@@ -404,25 +414,31 @@ local function renderMessage(msgData, page, storageTbl)
     end
 
     if msgData.imageLink and msgData.imageLink ~= "" then
-        local ImgBoxObj = Instance.new("Frame", ContentSection)
-        -- Dùng biến tỷ lệ ảnh từ phần cấu hình
-        ImgBoxObj.Size = UDim2.new(IMAGE_SIZE_RATIO, 0, 0, 0)
-        ImgBoxObj.BackgroundColor3 = Color3.fromRGB(35, 35, 40)
-        Instance.new("UICorner", ImgBoxObj).CornerRadius = UDim.new(0, 6)
+        -- ImageFrame chính: Chiều rộng 50%
+        local ImageFrame = Instance.new("Frame", ContentSection)
+        ImageFrame.Name = "ImageFrame"
+        ImageFrame.Size = UDim2.fromScale(0.5, 0) 
+        ImageFrame.BackgroundTransparency = 1 
         
-        -- Dùng Constraint để đảm bảo chiều dọc luôn tự động co giãn bằng với chiều ngang (Tỷ lệ 1:1 vuông)
-        local Aspect = Instance.new("UIAspectRatioConstraint", ImgBoxObj)
-        Aspect.AspectRatio = 1
-        Aspect.DominantAxis = Enum.DominantAxis.Width
+        -- AspectRatio ràng buộc chiều cao đúng bằng chiều rộng (Frame vuông 1:1)
+        local AspectRatio = Instance.new("UIAspectRatioConstraint", ImageFrame)
+        AspectRatio.AspectRatio = 1
+        AspectRatio.DominantAxis = Enum.DominantAxis.Width
 
-        local Img = Instance.new("ImageLabel", ImgBoxObj)
-        Img.BackgroundTransparency = 1; Img.Size = UDim2.new(1, -10, 1, -10); Img.Position = UDim2.new(0, 5, 0, 5)
-        Img.ScaleType = Enum.ScaleType.Fit -- Giữ ảnh luôn hiển thị đúng form fit, không bị méo hay vỡ
+        -- ImageLabel bên trong: Hiển thị fit vừa khung ImageFrame
+        local ImageLabel = Instance.new("ImageLabel", ImageFrame)
+        ImageLabel.Name = "ImageLabel"
+        ImageLabel.Size = UDim2.new(1, 0, 1, 0)
+        ImageLabel.Position = UDim2.new(0, 0, 0, 0)
+        ImageLabel.BackgroundTransparency = 1
+        ImageLabel.ScaleType = Enum.ScaleType.Fit -- Giúp ảnh không bao giờ bị méo
         
         task.spawn(function()
             local asset = getCacheAsset(msgData.imageLink)
-            if asset then Img.Image = asset else
-                local err = addLbl(ImgBoxObj, "Không tải được ảnh", Enum.Font.Gotham, 12, Color3.fromRGB(255,100,100))
+            if asset then 
+                ImageLabel.Image = asset 
+            else
+                local err = addLbl(ImageFrame, "Không tải được ảnh", Enum.Font.Gotham, 12, Color3.fromRGB(255,100,100))
                 err.Size = UDim2.new(1,0,1,0); err.TextAlignment = Enum.TextAlignment.Center
             end
         end)
@@ -434,7 +450,7 @@ local function renderMessage(msgData, page, storageTbl)
 end
 
 ---------------------------------------------------
--- UPDATE ONLINE TAB 
+-- UPDATE ONLINE TAB (FIX LỖI HIỂN THỊ SAI AVATAR/USER)
 ---------------------------------------------------
 local function updateUsersTab()
     for _, v in ipairs(Pages["users"]:GetChildren()) do
@@ -442,6 +458,9 @@ local function updateUsersTab()
     end
     
     for uname, udata in pairs(OnlineUsersList) do
+        -- Check kỹ thông tin để đảm bảo lấy đúng ID và Name
+        local safeUserId = tonumber(udata.userId) or 1
+        local safeDName = udata.displayName or "Unknown"
         local uRole = getRole(uname)
         local uRoleStr = (uRole == "OWNER") and "[👑 OWNER]" or (uRole == "ADMIN") and "[🛡️ ADMIN]" or "[👤 USER]"
         
@@ -453,11 +472,11 @@ local function updateUsersTab()
         ava.Size = UDim2.new(0, 36, 0, 36); ava.Position = UDim2.new(0, 7, 0, 7)
         ava.BackgroundColor3 = Color3.fromRGB(100,100,100); ava.ScaleType = Enum.ScaleType.Crop
         Instance.new("UICorner", ava).CornerRadius = UDim.new(1, 0)
-        ava.Image = "rbxthumb://type=AvatarHeadShot&id=" .. (tonumber(udata.userId) or 1) .. "&w=150&h=150"
+        ava.Image = "rbxthumb://type=AvatarHeadShot&id=" .. safeUserId .. "&w=150&h=150"
         
         local l1 = Instance.new("TextLabel", f)
         l1.Size = UDim2.new(1, -60, 0, 20); l1.Position = UDim2.new(0, 55, 0, 5); l1.BackgroundTransparency = 1
-        l1.Text = uRoleStr .. " " .. udata.displayName; l1.Font = Enum.Font.GothamBold; l1.TextSize = 13; l1.TextColor3 = Color3.fromRGB(240,240,240); l1.TextXAlignment = Enum.TextXAlignment.Left
+        l1.Text = uRoleStr .. " " .. safeDName; l1.Font = Enum.Font.GothamBold; l1.TextSize = 13; l1.TextColor3 = Color3.fromRGB(240,240,240); l1.TextXAlignment = Enum.TextXAlignment.Left
         
         local l2 = Instance.new("TextLabel", f)
         l2.Size = UDim2.new(1, -60, 0, 20); l2.Position = UDim2.new(0, 55, 0, 25); l2.BackgroundTransparency = 1
