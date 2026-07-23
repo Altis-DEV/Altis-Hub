@@ -1,4 +1,4 @@
--- Altis Hub - Global Chat V26 (ImageFrame + ImageLabel System & Timestamp)
+-- Altis Hub - Global Chat V27 (Fixed ImageFrame Square, Timestamp & Scrollbar Bug)
 local Players = game:GetService("Players")
 local HttpService = game:GetService("HttpService")
 local CoreGui = game:GetService("CoreGui")
@@ -87,10 +87,10 @@ end
 ---------------------------------------------------
 -- KHỞI TẠO GIAO DIỆN
 ---------------------------------------------------
-for _, v in ipairs(CoreGui:GetChildren()) do if v.Name == "AltisGlobal_V26" then v:Destroy() end end
+for _, v in ipairs(CoreGui:GetChildren()) do if v.Name == "AltisGlobal_V27" then v:Destroy() end end
 
 local GUI = Instance.new("ScreenGui", gethui and gethui() or CoreGui)
-GUI.Name = "AltisGlobal_V26"
+GUI.Name = "AltisGlobal_V27"
 GUI.ResetOnSpawn = false
 pcall(function() syn.protect_gui(GUI) end)
 
@@ -109,7 +109,7 @@ Topbar.ZIndex = 10; Instance.new("UICorner", Topbar).CornerRadius = UDim.new(0, 
 
 local Title = Instance.new("TextLabel", Topbar)
 Title.Size = UDim2.new(1, -45, 1, 0); Title.Position = UDim2.new(0, 10, 0, 0)
-Title.BackgroundTransparency = 1; Title.Text = "Altis Hub - Global Chat V26"
+Title.BackgroundTransparency = 1; Title.Text = "Altis Hub - Global Chat V27"
 Title.TextColor3 = Color3.fromRGB(255, 255, 255); Title.Font = Enum.Font.GothamBold; Title.TextSize = 14
 Title.TextXAlignment = Enum.TextXAlignment.Left; Title.ZIndex = 10
 
@@ -171,11 +171,23 @@ local function createTab(name, id, widthRatio)
     
     local page = Instance.new("ScrollingFrame", ContentArea)
     page.Size = UDim2.new(1, 0, 1, 0); page.BackgroundTransparency = 1; page.ScrollBarThickness = 4
-    page.CanvasSize = UDim2.new(0, 0, 0, 0); page.AutomaticCanvasSize = Enum.AutomaticSize.Y; page.Visible = false
+    
+    -- FIX TRIỆT ĐỂ: Tắt AutomaticCanvasSize để tự xử lý
+    page.CanvasSize = UDim2.new(0, 0, 0, 0)
+    page.AutomaticCanvasSize = Enum.AutomaticSize.None 
+    page.Visible = false
     
     local layout = Instance.new("UIListLayout", page); layout.Padding = UDim.new(0, 10)
     local pad = Instance.new("UIPadding", page)
     pad.PaddingTop = UDim.new(0,10); pad.PaddingBottom = UDim.new(0,10); pad.PaddingLeft = UDim.new(0,10); pad.PaddingRight = UDim.new(0,10)
+
+    -- SỰ KIỆN VÀNG: Bắt mọi sự thay đổi kích thước của danh sách tin nhắn
+    layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+        -- Cập nhật lại CanvasSize chính xác tới từng pixel (+20 là bù trừ PaddingTop và Bottom)
+        page.CanvasSize = UDim2.new(0, 0, 0, layout.AbsoluteContentSize.Y + 20)
+        -- Tự động cuộn xuống đáy mượt mà
+        page.CanvasPosition = Vector2.new(0, layout.AbsoluteContentSize.Y + 1000)
+    end)
 
     Pages[id], TabBtns[id] = page, btn
     
@@ -189,6 +201,12 @@ local function createTab(name, id, widthRatio)
         end
         checkAdminAccess()
         updateInputVisibility()
+        
+        -- Fix lỗi UI kẹt khi chuyển Tab
+        if Pages[id] then
+            local pLayout = Pages[id]:FindFirstChildWhichIsA("UIListLayout")
+            if pLayout then Pages[id].CanvasPosition = Vector2.new(0, pLayout.AbsoluteContentSize.Y + 1000) end
+        end
     end)
 end
 
@@ -258,7 +276,7 @@ MsgBox.Size = UDim2.new(1, -95, 0, 35); MsgBox.Position = UDim2.new(0, 10, 0, 5)
 MsgBox.BackgroundColor3 = Color3.fromRGB(45, 45, 50); MsgBox.TextColor3 = Color3.fromRGB(255, 255, 255)
 MsgBox.PlaceholderText = "Nhập tin nhắn hoặc lệnh (bắt đầu bằng /)..."
 MsgBox.Font = Enum.Font.Gotham; MsgBox.TextSize = 13; MsgBox.TextWrapped = true; MsgBox.TextXAlignment = Enum.TextXAlignment.Left
-MsgBox.ClearTextOnFocus = false -- Set lại thành false theo yêu cầu
+MsgBox.ClearTextOnFocus = false
 Instance.new("UICorner", MsgBox).CornerRadius = UDim.new(0, 6); Instance.new("UIPadding", MsgBox).PaddingLeft = UDim.new(0, 10)
 
 local ImgBox = Instance.new("TextBox", InputContainer)
@@ -266,7 +284,7 @@ ImgBox.Size = UDim2.new(1, -95, 0, 35); ImgBox.Position = UDim2.new(0, 10, 0, 45
 ImgBox.BackgroundColor3 = Color3.fromRGB(45, 45, 50); ImgBox.TextColor3 = Color3.fromRGB(200, 200, 255)
 ImgBox.PlaceholderText = "Dán link ảnh (.jpg/.png) hoặc rbxassetid://..."
 ImgBox.Font = Enum.Font.Gotham; ImgBox.TextSize = 12; ImgBox.TextWrapped = true; ImgBox.TextXAlignment = Enum.TextXAlignment.Left
-ImgBox.ClearTextOnFocus = false -- Set lại thành false theo yêu cầu
+ImgBox.ClearTextOnFocus = false
 Instance.new("UICorner", ImgBox).CornerRadius = UDim.new(0, 6); Instance.new("UIPadding", ImgBox).PaddingLeft = UDim.new(0, 10)
 
 local SendBtn = Instance.new("TextButton", InputContainer)
@@ -414,17 +432,13 @@ local function renderMessage(msgData, page, storageTbl)
     end
 
     if msgData.imageLink and msgData.imageLink ~= "" then
-        -- ImageFrame chính: Chiều rộng 50%
+        -- V27 FIX: Sử dụng SizeConstraint để xử lý dứt điểm lỗi Y=0 do Frame cha AutomaticSize.
         local ImageFrame = Instance.new("Frame", ContentSection)
         ImageFrame.Name = "ImageFrame"
-        ImageFrame.Size = UDim2.fromScale(0.5, 0) 
+        ImageFrame.SizeConstraint = Enum.SizeConstraint.RelativeXX -- Dùng trục X làm mốc tỷ lệ chuẩn cho cả X và Y
+        ImageFrame.Size = UDim2.new(0.5, 0, 0.5, 0) -- Rộng 50% khung chat và Cao cũng = 50% khung chat => Vuông 1:1 hoàn hảo.
         ImageFrame.BackgroundTransparency = 1 
         
-        -- AspectRatio ràng buộc chiều cao đúng bằng chiều rộng (Frame vuông 1:1)
-        local AspectRatio = Instance.new("UIAspectRatioConstraint", ImageFrame)
-        AspectRatio.AspectRatio = 1
-        AspectRatio.DominantAxis = Enum.DominantAxis.Width
-
         -- ImageLabel bên trong: Hiển thị fit vừa khung ImageFrame
         local ImageLabel = Instance.new("ImageLabel", ImageFrame)
         ImageLabel.Name = "ImageLabel"
@@ -445,12 +459,14 @@ local function renderMessage(msgData, page, storageTbl)
     end
 
     table.insert(storageTbl, Frame)
-    if #storageTbl > MAX_MSGS then storageTbl[1]:Destroy(); table.remove(storageTbl, 1) end
-    task.spawn(function() task.wait(0.1); page.CanvasPosition = Vector2.new(0, 99999) end)
+    if #storageTbl > MAX_MSGS then 
+        storageTbl[1]:Destroy()
+        table.remove(storageTbl, 1) 
+    end
 end
 
 ---------------------------------------------------
--- UPDATE ONLINE TAB (FIX LỖI HIỂN THỊ SAI AVATAR/USER)
+-- UPDATE ONLINE TAB
 ---------------------------------------------------
 local function updateUsersTab()
     for _, v in ipairs(Pages["users"]:GetChildren()) do
@@ -458,7 +474,6 @@ local function updateUsersTab()
     end
     
     for uname, udata in pairs(OnlineUsersList) do
-        -- Check kỹ thông tin để đảm bảo lấy đúng ID và Name
         local safeUserId = tonumber(udata.userId) or 1
         local safeDName = udata.displayName or "Unknown"
         local uRole = getRole(uname)
