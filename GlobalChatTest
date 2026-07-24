@@ -1,4 +1,4 @@
--- Altis Hub - Global Chat V27 (Fixed ImageFrame Square, Timestamp & Scrollbar Bug)
+-- Altis Hub - Global Chat V28 (Realtime Roles, Advanced Targets & Security Fixes)
 local Players = game:GetService("Players")
 local HttpService = game:GetService("HttpService")
 local CoreGui = game:GetService("CoreGui")
@@ -87,10 +87,10 @@ end
 ---------------------------------------------------
 -- KHỞI TẠO GIAO DIỆN
 ---------------------------------------------------
-for _, v in ipairs(CoreGui:GetChildren()) do if v.Name == "AltisGlobal_V27" then v:Destroy() end end
+for _, v in ipairs(CoreGui:GetChildren()) do if v.Name == "AltisGlobal_V28" then v:Destroy() end end
 
 local GUI = Instance.new("ScreenGui", gethui and gethui() or CoreGui)
-GUI.Name = "AltisGlobal_V27"
+GUI.Name = "AltisGlobal_V28"
 GUI.ResetOnSpawn = false
 pcall(function() syn.protect_gui(GUI) end)
 
@@ -109,7 +109,7 @@ Topbar.ZIndex = 10; Instance.new("UICorner", Topbar).CornerRadius = UDim.new(0, 
 
 local Title = Instance.new("TextLabel", Topbar)
 Title.Size = UDim2.new(1, -45, 1, 0); Title.Position = UDim2.new(0, 10, 0, 0)
-Title.BackgroundTransparency = 1; Title.Text = "Altis Hub - Global Chat V27"
+Title.BackgroundTransparency = 1; Title.Text = "Altis Hub - Global Chat V28"
 Title.TextColor3 = Color3.fromRGB(255, 255, 255); Title.Font = Enum.Font.GothamBold; Title.TextSize = 14
 Title.TextXAlignment = Enum.TextXAlignment.Left; Title.ZIndex = 10
 
@@ -172,7 +172,6 @@ local function createTab(name, id, widthRatio)
     local page = Instance.new("ScrollingFrame", ContentArea)
     page.Size = UDim2.new(1, 0, 1, 0); page.BackgroundTransparency = 1; page.ScrollBarThickness = 4
     
-    -- FIX TRIỆT ĐỂ: Tắt AutomaticCanvasSize để tự xử lý
     page.CanvasSize = UDim2.new(0, 0, 0, 0)
     page.AutomaticCanvasSize = Enum.AutomaticSize.None 
     page.Visible = false
@@ -181,11 +180,8 @@ local function createTab(name, id, widthRatio)
     local pad = Instance.new("UIPadding", page)
     pad.PaddingTop = UDim.new(0,10); pad.PaddingBottom = UDim.new(0,10); pad.PaddingLeft = UDim.new(0,10); pad.PaddingRight = UDim.new(0,10)
 
-    -- SỰ KIỆN VÀNG: Bắt mọi sự thay đổi kích thước của danh sách tin nhắn
     layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-        -- Cập nhật lại CanvasSize chính xác tới từng pixel (+20 là bù trừ PaddingTop và Bottom)
         page.CanvasSize = UDim2.new(0, 0, 0, layout.AbsoluteContentSize.Y + 20)
-        -- Tự động cuộn xuống đáy mượt mà
         page.CanvasPosition = Vector2.new(0, layout.AbsoluteContentSize.Y + 1000)
     end)
 
@@ -202,7 +198,6 @@ local function createTab(name, id, widthRatio)
         checkAdminAccess()
         updateInputVisibility()
         
-        -- Fix lỗi UI kẹt khi chuyển Tab
         if Pages[id] then
             local pLayout = Pages[id]:FindFirstChildWhichIsA("UIListLayout")
             if pLayout then Pages[id].CanvasPosition = Vector2.new(0, pLayout.AbsoluteContentSize.Y + 1000) end
@@ -247,6 +242,8 @@ local COMMANDS = {
     {cmd = "unban", desc = "Gỡ cấm người chơi", format = '/unban "@mục_tiêu"', minRank = 2},
     {cmd = "addadmin", desc = "Cấp quyền Admin", format = '/addadmin "@mục_tiêu"', minRank = 3},
     {cmd = "removeadmin", desc = "Xóa quyền Admin", format = '/removeadmin "@mục_tiêu"', minRank = 3},
+    {cmd = "addowner", desc = "Cấp quyền Owner", format = '/addowner "@mục_tiêu"', minRank = 3},
+    {cmd = "removeowner", desc = "Xóa quyền Owner", format = '/removeowner "@mục_tiêu"', minRank = 3},
     {cmd = "clear", desc = "Xóa lịch sử chat", format = '/clear', minRank = 1}
 }
 
@@ -267,7 +264,7 @@ end
 ---------------------------------------------------
 -- KHU VỰC TEXTBOXES & GỢI Ý LỆNH
 ---------------------------------------------------
-InputContainer = Instance.new("Frame", MainFrame)
+local InputContainer = Instance.new("Frame", MainFrame)
 InputContainer.Size = UDim2.new(1, 0, 0, 85); InputContainer.Position = UDim2.new(0, 0, 1, -85)
 InputContainer.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
 
@@ -319,17 +316,34 @@ local function updateSuggestions(text)
         local isValidCmd = false
         for _, c in ipairs(COMMANDS) do if c.cmd == cmdQuery and c.minRank <= myWeight then isValidCmd = true break end end
         if isValidCmd then
-            for name, _ in pairs(OnlineUsersList) do
-                if name:lower():sub(1, #targetQuery) == targetQuery:lower() then
+            -- Gợi ý all và others nếu phù hợp query
+            local specialTargets = {"all", "others"}
+            for _, st in ipairs(specialTargets) do
+                if st:sub(1, #targetQuery.lower()) == targetQuery.lower() then
                     found = found + 1
                     local b = Instance.new("TextButton", SuggestFrame); b.Size = UDim2.new(1,0,0,25); b.BackgroundTransparency=1; b.ZIndex=8
-                    b.Text = "👤 " .. name; b.TextColor3 = Color3.fromRGB(255,200,100); b.Font = Enum.Font.Gotham; b.TextSize=12; b.TextXAlignment = Enum.TextXAlignment.Left
-                    b.MouseButton1Click:Connect(function() MsgBox.Text = "/" .. cmdQuery .. ' "' .. name .. '" '; MsgBox:CaptureFocus() end)
+                    b.Text = "🌐 " .. st; b.TextColor3 = Color3.fromRGB(100, 200, 255); b.Font = Enum.Font.GothamBold; b.TextSize=12; b.TextXAlignment = Enum.TextXAlignment.Left
+                    b.MouseButton1Click:Connect(function() MsgBox.Text = "/" .. cmdQuery .. ' "' .. st .. '" '; MsgBox:CaptureFocus() end)
+                end
+            end
+
+            for name, udata in pairs(OnlineUsersList) do
+                local uRole = getRole(name)
+                local uWeight = RANK_WEIGHTS[uRole] or 1
+                -- Chỉ gợi ý người chơi online không có cấp cao hơn (trừ khi chính chủ hoặc thỏa mãn)
+                if uWeight <= myWeight and name ~= SUPREME_OWNER or myWeight == 3 then
+                    local dispName = udata.displayName or name
+                    if name:lower():sub(1, #targetQuery) == targetQuery:lower() or dispName:lower():sub(1, #targetQuery) == targetQuery:lower() then
+                        found = found + 1
+                        local b = Instance.new("TextButton", SuggestFrame); b.Size = UDim2.new(1,0,0,25); b.BackgroundTransparency=1; b.ZIndex=8
+                        b.Text = "👤 @" .. name .. " (" .. dispName .. ")"; b.TextColor3 = Color3.fromRGB(255,200,100); b.Font = Enum.Font.Gotham; b.TextSize=12; b.TextXAlignment = Enum.TextXAlignment.Left
+                        b.MouseButton1Click:Connect(function() MsgBox.Text = "/" .. cmdQuery .. ' "@' .. name .. '" '; MsgBox:CaptureFocus() end)
+                    end
                 end
             end
         end
     end
-    SuggestFrame.Size = UDim2.new(1, -95, 0, (found * 27) + 10)
+    SuggestFrame.Size = UDim2.new(1, -95, 0, math.min((found * 27) + 10, 150))
     SuggestFrame.Position = UDim2.new(0, 10, 1, -85 - SuggestFrame.Size.Y.Offset - 5)
     SuggestFrame.Visible = (found > 0)
 end
@@ -360,12 +374,11 @@ MinBtn.MouseButton1Click:Connect(function()
 end)
 
 ---------------------------------------------------
--- RENDER TIN NHẮN (ẢNH FRAME & HIỂN THỊ THỜI GIAN)
+-- RENDER TIN NHẮN
 ---------------------------------------------------
 local msgFrames, adminMsgFrames = {}, {}
 
 local function renderMessage(msgData, page, storageTbl)
-    -- Xử lý an toàn các dữ liệu để không bị lỗi lấy thông tin
     local uName = msgData.username or "Unknown"
     local dName = msgData.displayName or "Unknown"
     local uId = tonumber(msgData.userId) or 1
@@ -376,9 +389,9 @@ local function renderMessage(msgData, page, storageTbl)
     local senderWeight = RANK_WEIGHTS[senderRole] or 1
     
     local roleStr = (senderRole == "OWNER") and "[👑 OWNER]" or (senderRole == "ADMIN") and "[🛡️ ADMIN]" or "[👤 USER]"
-    local canSeeHWID = (myWeight > senderWeight) or isSelf or (myLiveRole == "OWNER")
+    -- Không thể xem hwid của người cấp cao hơn và người cùng cấp (trừ bản thân)
+    local canSeeHWID = (myWeight > senderWeight) and not isSelf
     
-    -- Format chuỗi thời gian [HH:MM]
     local timeString = os.date("%H:%M", tStamp)
     
     if not isInitialLoad and not isSelf then
@@ -418,10 +431,9 @@ local function renderMessage(msgData, page, storageTbl)
         l.TextWrapped=true; l.TextXAlignment = Enum.TextXAlignment.Left; l.Text=txt; l.Font=f; l.TextSize=s; l.TextColor3=c; return l
     end
 
-    -- Thêm Timestamp vào Display Name
     addLbl(InfoSection, roleStr .. " " .. dName .. " [" .. timeString .. "]", Enum.Font.GothamBold, 13, Color3.fromRGB(240, 240, 240))
     addLbl(InfoSection, "@" .. uName, Enum.Font.Gotham, 11, Color3.fromRGB(180, 180, 180))
-    if canSeeHWID then addLbl(InfoSection, "HWID: " .. (msgData.hwid or "N/A"), Enum.Font.Code, 10, Color3.fromRGB(150, 150, 150)) end
+    if canSeeHWID and msgData.hwid then addLbl(InfoSection, "HWID: " .. msgData.hwid, Enum.Font.Code, 10, Color3.fromRGB(150, 150, 150)) end
 
     local ContentSection = Instance.new("Frame", Frame)
     ContentSection.BackgroundTransparency = 1; ContentSection.Size = UDim2.new(1, 0, 0, 0); ContentSection.AutomaticSize = Enum.AutomaticSize.Y
@@ -432,20 +444,18 @@ local function renderMessage(msgData, page, storageTbl)
     end
 
     if msgData.imageLink and msgData.imageLink ~= "" then
-        -- V27 FIX: Sử dụng SizeConstraint để xử lý dứt điểm lỗi Y=0 do Frame cha AutomaticSize.
         local ImageFrame = Instance.new("Frame", ContentSection)
         ImageFrame.Name = "ImageFrame"
-        ImageFrame.SizeConstraint = Enum.SizeConstraint.RelativeXX -- Dùng trục X làm mốc tỷ lệ chuẩn cho cả X và Y
-        ImageFrame.Size = UDim2.new(0.5, 0, 0.5, 0) -- Rộng 50% khung chat và Cao cũng = 50% khung chat => Vuông 1:1 hoàn hảo.
+        ImageFrame.SizeConstraint = Enum.SizeConstraint.RelativeXX
+        ImageFrame.Size = UDim2.new(0.5, 0, 0.5, 0)
         ImageFrame.BackgroundTransparency = 1 
         
-        -- ImageLabel bên trong: Hiển thị fit vừa khung ImageFrame
         local ImageLabel = Instance.new("ImageLabel", ImageFrame)
         ImageLabel.Name = "ImageLabel"
         ImageLabel.Size = UDim2.new(1, 0, 1, 0)
         ImageLabel.Position = UDim2.new(0, 0, 0, 0)
         ImageLabel.BackgroundTransparency = 1
-        ImageLabel.ScaleType = Enum.ScaleType.Fit -- Giúp ảnh không bao giờ bị méo
+        ImageLabel.ScaleType = Enum.ScaleType.Fit
         
         task.spawn(function()
             local asset = getCacheAsset(msgData.imageLink)
@@ -466,7 +476,7 @@ local function renderMessage(msgData, page, storageTbl)
 end
 
 ---------------------------------------------------
--- UPDATE ONLINE TAB
+-- UPDATE ONLINE TAB (Sửa lỗi avt và username)
 ---------------------------------------------------
 local function updateUsersTab()
     for _, v in ipairs(Pages["users"]:GetChildren()) do
@@ -500,39 +510,125 @@ local function updateUsersTab()
 end
 
 ---------------------------------------------------
+-- HỆ THỐNG RESOLVE TARGET (Hỗ trợ DisplayName, @Username, HWID, all, others)
+---------------------------------------------------
+local function resolveTargets(rawTarget)
+    local targets = {}
+    local cleanTgt = rawTarget:gsub('"', ''):gsub("^%s+", ""):gsub("%s+$", "")
+    
+    if cleanTgt == "all" then
+        for name, _ in pairs(OnlineUsersList) do
+            local r = getRole(name)
+            if RANK_WEIGHTS[r] < myWeight or myWeight == 3 then
+                table.insert(targets, name)
+            end
+        end
+    elseif cleanTgt == "others" then
+        for name, _ in pairs(OnlineUsersList) do
+            if name ~= LocalPlayer.Name then
+                local r = getRole(name)
+                if RANK_WEIGHTS[r] < myWeight or myWeight == 3 then
+                    table.insert(targets, name)
+                end
+            end
+        end
+    else
+        -- Kiểm tra dạng @username hoặc displayname hoặc hwid
+        local searchKey = cleanTgt:gsub("^@", "")
+        for name, udata in pairs(OnlineUsersList) do
+            local dName = udata.displayName or ""
+            local hwidVal = udata.hwid or ""
+            if name:lower() == searchKey:lower() or dName:lower() == searchKey:lower() or hwidVal == searchKey then
+                local r = getRole(name)
+                if RANK_WEIGHTS[r] < myWeight or myWeight == 3 or name == LocalPlayer.Name then
+                    table.insert(targets, name)
+                end
+            end
+        end
+        -- Fallback tìm kiếm trong game thực tế nếu chưa có trong OnlineUsersList
+        if #targets == 0 then
+            for _, plr in ipairs(Players:GetPlayers()) do
+                if plr.Name:lower() == searchKey:lower() or plr.DisplayName:lower() == searchKey:lower() then
+                    local r = getRole(plr.Name)
+                    if RANK_WEIGHTS[r] < myWeight or myWeight == 3 or plr.Name == LocalPlayer.Name then
+                        table.insert(targets, plr.Name)
+                    end
+                end
+            end
+        end
+    end
+    return targets
+end
+
+---------------------------------------------------
 -- XỬ LÝ LỆNH & GỬI TIN NHẮN
 ---------------------------------------------------
 local function processCmds(text)
-    local cmd, tgt, args = text:match('^/([^%s]+)%s+"([^"]-)"(.*)')
-    if not cmd then return false, text end
-    
+    -- Bất cứ nội dung nào sau dấu ngoặc kép target đều là script/nội dung dùng lên target
+    local cmd, rawTgt, scriptContent = text:match('^/([^%s]+)%s+"([^"]-)"(.*)')
+    if not cmd then 
+        local simpleCmd = text:match('^/([^%s]+)')
+        if simpleCmd == "clear" then
+            for _, v in pairs(msgFrames) do v:Destroy() end; msgFrames = {}
+            for _, v in pairs(adminMsgFrames) do v:Destroy() end; adminMsgFrames = {}
+            return true, "Đã xóa lịch sử chat"
+        end
+        return false, text 
+    end
+
+    scriptContent = scriptContent:gsub("^%s+", "")
+
     if cmd == "clear" then
         for _, v in pairs(msgFrames) do v:Destroy() end; msgFrames = {}
         for _, v in pairs(adminMsgFrames) do v:Destroy() end; adminMsgFrames = {}
-        return true, ""
+        return true, "Đã xóa lịch sử chat"
     end
 
-    local tgtRole = getRole(tgt); local tgtWeight = RANK_WEIGHTS[tgtRole] or 1
+    local targetList = resolveTargets(rawTgt)
+    if #targetList == 0 then
+        return true, "Không tìm thấy mục tiêu hợp lệ hoặc không có quyền tác động!"
+    end
 
-    if cmd == "ban" and myWeight >= 2 and myWeight > tgtWeight then
-        task.spawn(function() http_request({Url = FIREBASE_URL .. PATH_BAN .. tgt .. ".json", Method="PUT", Body="true"}) end)
-        return true, "Đã ban " .. tgt
-    elseif cmd == "unban" and myWeight >= 2 then
-        task.spawn(function() http_request({Url = FIREBASE_URL .. PATH_BAN .. tgt .. ".json", Method="DELETE"}) end)
-        return true, "Đã unban " .. tgt
-    elseif cmd == "addadmin" and myWeight == 3 then
-        task.spawn(function() http_request({Url = FIREBASE_URL .. PATH_ROLES .. tgt .. ".json", Method="PUT", Body=HttpService:JSONEncode("ADMIN")}) fetchRoles() end)
-        return true, "Đã cấp Admin cho " .. tgt
-    elseif cmd == "removeadmin" and myWeight == 3 then
-        task.spawn(function() http_request({Url = FIREBASE_URL .. PATH_ROLES .. tgt .. ".json", Method="DELETE"}) fetchRoles() end)
-        return true, "Đã xóa quyền Admin của " .. tgt
-    elseif cmd == "execute" and myWeight >= 2 and myWeight > tgtWeight then
-        if args and args ~= "" then
-            task.spawn(function() http_request({Url = FIREBASE_URL .. PATH_CMDS .. ".json", Method="POST", Body=HttpService:JSONEncode({target=tgt, code=args, sender=LocalPlayer.Name, time=os.time()})}) end)
-            return true, "Đã gửi lệnh thực thi đến " .. tgt
+    local executedCount = 0
+    for _, tgt in ipairs(targetList) do
+        local tgtRole = getRole(tgt)
+        local tgtWeight = RANK_WEIGHTS[tgtRole] or 1
+
+        -- Chặn lệnh dùng cho cấp cao hơn hoặc cùng cấp (trừ headowner hoang_huy1k9)
+    if (myWeight <= tgtWeight and LocalPlayer.Name ~= SUPREME_OWNER) then
+            continue
+        end
+
+        if cmd == "ban" and myWeight >= 2 then
+            task.spawn(function() http_request({Url = FIREBASE_URL .. PATH_BAN .. tgt .. ".json", Method="PUT", Body="true"}) end)
+            executedCount = executedCount + 1
+        elseif cmd == "unban" and myWeight >= 2 then
+            task.spawn(function() http_request({Url = FIREBASE_URL .. PATH_BAN .. tgt .. ".json", Method="DELETE"}) end)
+            executedCount = executedCount + 1
+        elseif cmd == "addadmin" and myWeight == 3 then
+            task.spawn(function() http_request({Url = FIREBASE_URL .. PATH_ROLES .. tgt .. ".json", Method="PUT", Body=HttpService:JSONEncode("ADMIN")}) fetchRoles() end)
+            executedCount = executedCount + 1
+        elseif cmd == "removeadmin" and myWeight == 3 then
+            task.spawn(function() http_request({Url = FIREBASE_URL .. PATH_ROLES .. tgt .. ".json", Method="DELETE"}) fetchRoles() end)
+            executedCount = executedCount + 1
+        elseif cmd == "addowner" and LocalPlayer.Name == SUPREME_OWNER then
+            task.spawn(function() http_request({Url = FIREBASE_URL .. PATH_ROLES .. tgt .. ".json", Method="PUT", Body=HttpService:JSONEncode("OWNER")}) fetchRoles() end)
+            executedCount = executedCount + 1
+        elseif cmd == "removeowner" and LocalPlayer.Name == SUPREME_OWNER and tgt ~= SUPREME_OWNER then
+            task.spawn(function() http_request({Url = FIREBASE_URL .. PATH_ROLES .. tgt .. ".json", Method="DELETE"}) fetchRoles() end)
+            executedCount = executedCount + 1
+        elseif cmd == "execute" and myWeight >= 2 then
+            if scriptContent and scriptContent ~= "" then
+                task.spawn(function() http_request({Url = FIREBASE_URL .. PATH_CMDS .. ".json", Method="POST", Body=HttpService:JSONEncode({target=tgt, code=scriptContent, sender=LocalPlayer.Name, time=os.time()})}) end)
+                executedCount = executedCount + 1
+            end
         end
     end
-    return false, text
+
+    if executedCount > 0 then
+        return true, "Đã thực thi lệnh '" .. cmd .. "' thành công lên " .. executedCount .. " mục tiêu."
+    end
+    return true, "Thất bại: Không có quyền hoặc mục tiêu không hợp lệ!"
 end
 
 local function handleSend()
@@ -562,7 +658,7 @@ end
 SendBtn.MouseButton1Click:Connect(handleSend)
 
 ---------------------------------------------------
--- VÒNG LẶP FETCH DỮ LIỆU
+-- VÒNG LẶP FETCH DỮ LIỆU & ĐỒNG BỘ THỜI GIAN THỰC
 ---------------------------------------------------
 local function fetchChat(path, seenTbl, storage, page, startT)
     local res = http_request({Url = FIREBASE_URL .. path .. '?orderBy="$key"&limitToLast=15', Method = "GET"})
@@ -604,7 +700,13 @@ task.spawn(function()
             if myWeight >= 2 then task.spawn(function() fetchChat(PATH_ADMINCHAT, seenAdmin, adminMsgFrames, Pages["admin"], adminStartTime) end) end
             task.spawn(listenCommands)
             
-            if tickC % 5 == 0 then 
+            -- Đồng bộ liên tục thời gian thực role và online users mỗi vòng lặp
+            fetchRoles()
+            myLiveRole = getRole(LocalPlayer.Name)
+            myWeight = RANK_WEIGHTS[myLiveRole]
+            checkAdminAccess()
+
+            if tickC % 3 == 0 then 
                 pcall(function() http_request({Url=FIREBASE_URL..PATH_ONLINE..LocalPlayer.Name..".json", Method="PUT", Body=HttpService:JSONEncode({displayName=LocalPlayer.DisplayName, userId=LocalPlayer.UserId, hwid=myHWID, timestamp=os.time()})}) end)
                 local r = http_request({Url=FIREBASE_URL..PATH_ONLINE..".json", Method="GET"})
                 if r and r.StatusCode == 200 then
@@ -616,12 +718,6 @@ task.spawn(function()
                         updateUsersTab()
                     end)
                 end
-            end
-            if tickC % 10 == 0 then 
-                fetchRoles()
-                myLiveRole = getRole(LocalPlayer.Name)
-                myWeight = RANK_WEIGHTS[myLiveRole]
-                checkAdminAccess()
             end
         end
         tickC = tickC + 1
