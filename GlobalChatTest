@@ -333,7 +333,7 @@ Pages["chat"].Visible = true
 ---------------------------------------------------
 AdminBlocker = Instance.new("Frame", MainFrame)
 AdminBlocker.Size = UDim2.new(1, 0, 1, -75); AdminBlocker.Position = UDim2.new(0, 0, 0, 75)
-AdminBlocker.BackgroundColor3 = Color3.fromRGB(15, 15, 20); AdminBlocker.BackgroundTransparency = 0.2
+AdminBlocker.BackgroundColor3 = Color3.fromRGB(15, 15, 20); AdminBlocker.BackgroundTransparency = 0
 AdminBlocker.Active = true; AdminBlocker.ZIndex = 9; AdminBlocker.Visible = false
 Instance.new("UICorner", AdminBlocker).CornerRadius = UDim.new(0, 8)
 
