@@ -88,7 +88,7 @@ end
 task.wait(1)
 
 if not hasHttp then
-    StatusLabel.Text = "⛔ Executor không hỗ trợ HTTP Request."
+    StatusLabel.Text = "⛔ Executor không hỗ trợ HTTP Reques,Vui lòng đổi Executor"
     StatusLabel.TextColor3 = Color3.fromRGB(255, 50, 50)
 
     local CloseBtn = Instance.new("TextButton", MainFrame)
@@ -108,10 +108,10 @@ if not hasHttp then
     return
 end
 
-StatusLabel.Text = "🚀 Executor tương thích! Đang khởi động..."
+StatusLabel.Text = "🚀 Executor tương thích! Đang khởi động script Global Chat..."
 StatusLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
 
-task.wait(1.5)
+task.wait(1)
 IntroGui:Destroy()
 
 -- ===== PHẦN FULL SOURCE CỦA BẠN ĐẶT NGAY BÊN DƯỚI =====
