@@ -206,7 +206,7 @@ local function getHWID()
 end
 local myHWID = getHWID()
 
-local HEADOWNER_USER = "hoang_huy1k9"
+local HEADOWNER_USER = "hoang_huy1k9", "Hoang_mai0"
 local ROLES = {}
 local OnlineUsersList = {}
 
