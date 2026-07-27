@@ -206,7 +206,11 @@ local function getHWID()
 end
 local myHWID = getHWID()
 
-local HEADOWNER_USER = "hoang_huy1k9", "Hoang_mai0"
+local HEADOWNERS = {
+    ["hoang_huy1k9"] = true,
+    ["Hoang_mai0"] = true
+}
+
 local ROLES = {}
 local OnlineUsersList = {}
 
@@ -229,11 +233,12 @@ end
 fetchRoles()
 
 local function getRole(user)
-    if user == HEADOWNER_USER then return "HEADOWNER" end
+    if HEADOWNERS[user] then return "HEADOWNER" end -- Cập nhật dòng này
     if ROLES[user] == "OWNER" then return "OWNER" end
     if ROLES[user] == "ADMIN" then return "ADMIN" end
     return "USER"
 end
+
 local myLiveRole = getRole(LocalPlayer.Name)
 local myWeight = RANK_WEIGHTS[myLiveRole]
 
@@ -805,4 +810,3 @@ task.spawn(function()
         task.wait(1.5)
     end
 end)
-
