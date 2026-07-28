@@ -128,7 +128,7 @@ local http_request = (syn and syn.request) or (http and http.request) or request
 ---------------------------------------------------
 -- CẤU HÌNH WEBHOOK & UI
 ---------------------------------------------------
-local DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/1530461171977818255/9D3YDtO2N28AqX_kM5G4q4abtFxaoc1jddlzCJe4yK7BYU7tZtBumRjsf128D-fgw5R_"
+local DISCORD_WEBHOOK_URL = ""
 local UI_WIDTH_SCALE = 0.4
 local UI_HEIGHT_SCALE = 0.6
 
