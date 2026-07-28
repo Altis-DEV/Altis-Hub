@@ -21,8 +21,7 @@ end
 local FIREBASE_URL = "https://myfirstproject-e1354-default-rtdb.firebaseio.com/"
 local PATH_CHAT = "globalchat_v30/chat.json"
 local PATH_ONLINE = "globalchat_v30/online/"
-local DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/1530461171977818255/9D3YDtO2N28AqX_kM5G4q4abtFxaoc1jddlzCJe4yK7BYU7tZtBumRjsf128D-fgw5R_"
-
+local DISCORD_WEBHOOK_URL = ""
 ---------------------------------------------------
 -- HÀM GỬI LOG LÊN DISCORD (GỌN GÀNG)
 ---------------------------------------------------
