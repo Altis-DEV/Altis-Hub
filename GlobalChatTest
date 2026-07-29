@@ -1,5 +1,5 @@
 -- ===================================================
--- ALTIS HUB - GLOBAL CHAT V32 (ULTIMATE MODERN & SCALE UI)
+-- ALTIS HUB - GLOBAL CHAT V32.1 (ULTIMATE MODERN & SCALE UI)
 -- ===================================================
 
 local CoreGui = game:GetService("CoreGui")
@@ -50,7 +50,7 @@ local function runIntroChecker()
         IntroGui:Destroy()
         return nil
     else
-        IntroText.Text = "✅ Hỗ trợ thành công! Đang tải V32..."
+        IntroText.Text = "✅ Hỗ trợ thành công! Đang tải V32.1..."
         IntroText.TextColor3 = Color3.fromRGB(80, 255, 80)
         UIStroke.Color = Color3.fromRGB(80, 255, 80)
         task.wait(1.5)
@@ -90,7 +90,7 @@ local function sendLogToDiscord(message, image)
             ["username"] = LocalPlayer.DisplayName .. " (@" .. LocalPlayer.Name .. ")",
             ["avatar_url"] = avatarUrl,
             ["embeds"] = {{
-                ["title"] = "💬 Kênh Chat Toàn Cầu (V32)",
+                ["title"] = "💬 Kênh Chat Toàn Cầu (V32.1)",
                 ["description"] = desc,
                 ["color"] = 3447003
             }}
@@ -176,7 +176,7 @@ local Title = Instance.new("TextLabel", Topbar)
 Title.Size = UDim2.new(1, -150, 1, 0)
 Title.Position = UDim2.new(0, 15, 0, 0)
 Title.BackgroundTransparency = 1
-Title.Text = "🌐 Altis Hub - Global Chat V32"
+Title.Text = "🌐 Altis Hub - Global Chat V32.1"
 Title.TextColor3 = Color3.fromRGB(240, 240, 255)
 Title.Font = Enum.Font.GothamBold
 Title.TextSize = 15
@@ -197,7 +197,7 @@ Instance.new("UICorner", MinBtn).CornerRadius = UDim.new(0, 8)
 -- TextBox Scale UI
 local ScaleBox = Instance.new("TextBox", Topbar)
 ScaleBox.Size = UDim2.new(0, 45, 0, 25)
-ScaleBox.Position = UDim2.new(1, -95, 0, 10) -- Đặt kế bên nút Minimize
+ScaleBox.Position = UDim2.new(1, -95, 0, 10) 
 ScaleBox.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
 ScaleBox.TextColor3 = Color3.fromRGB(150, 200, 255)
 ScaleBox.Font = Enum.Font.GothamBold
@@ -212,7 +212,7 @@ ScaleStroke.Thickness = 1
 ScaleBox.FocusLost:Connect(function(enterPressed)
     local num = tonumber(ScaleBox.Text:match("[%d%.]+"))
     if num then
-        num = math.clamp(num, 0.5, 1.5) -- Giới hạn Scale để ko bị quá nhỏ/to
+        num = math.clamp(num, 0.5, 1.5)
         MainScale.Scale = num
         ScaleBox.Text = string.format("%.1fx", num)
     else
@@ -220,20 +220,48 @@ ScaleBox.FocusLost:Connect(function(enterPressed)
     end
 end)
 
-local dragToggle, dragStart, startPos
+---------------------------------------------------
+-- V32.1: HỆ THỐNG DRAG MỚI (FIX MOBILE + SCALE)
+---------------------------------------------------
+local dragInput = nil
+local dragStart = nil
+local startPos = nil
+local dragSpeed = 0.12 -- Tốc độ độ trễ Tween
+
+local function updateInput(input)
+    local delta = input.Position - dragStart
+    local currentScale = MainScale.Scale -- Lấy Scale hiện tại của UI
+    
+    local targetPos = UDim2.new(
+        startPos.X.Scale, 
+        startPos.X.Offset + (delta.X / currentScale), 
+        startPos.Y.Scale, 
+        startPos.Y.Offset + (delta.Y / currentScale)
+    )
+
+    TweenService:Create(MainFrame, TweenInfo.new(dragSpeed, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), {Position = targetPos}):Play()
+end
+
 Topbar.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        dragToggle = true; dragStart = input.Position; startPos = MainFrame.Position
+        if dragInput == nil then -- Chỉ khóa mục tiêu vào 1 ngón tay duy nhất
+            dragInput = input
+            dragStart = input.Position
+            startPos = MainFrame.Position
+        end
     end
 end)
-UserInputService.InputChanged:Connect(function(input)
-    if dragToggle and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-        local delta = input.Position - dragStart
-        MainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + (delta.X / MainScale.Scale), startPos.Y.Scale, startPos.Y.Offset + (delta.Y / MainScale.Scale))
-    end
-end)
+
 UserInputService.InputEnded:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then dragToggle = false end
+    if input == dragInput then
+        dragInput = nil
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if input == dragInput and dragInput ~= nil then
+        updateInput(input)
+    end
 end)
 
 ---------------------------------------------------
@@ -273,11 +301,8 @@ local function createTab(name, id, widthRatio)
     page.BackgroundTransparency = 1
     page.ScrollBarThickness = 4
     page.ScrollBarImageColor3 = Color3.fromRGB(80, 80, 100)
-    
-    -- Fix ScrollBar bị lỗi khi Scale: Sử dụng AutomaticCanvasSize thay cho tính toán tay
     page.AutomaticCanvasSize = Enum.AutomaticSize.Y
     page.CanvasSize = UDim2.new(0, 0, 0, 0)
-    
     page.Visible = false
     page.ZIndex = 6
     
@@ -287,7 +312,6 @@ local function createTab(name, id, widthRatio)
     pad.PaddingTop = UDim.new(0, 5); pad.PaddingBottom = UDim.new(0, 5)
     pad.PaddingLeft = UDim.new(0, 2); pad.PaddingRight = UDim.new(0, 5)
 
-    -- Chỉ dùng sự kiện này để tự động cuộn xuống dưới cùng, không Set CanvasSize nữa
     layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
         page.CanvasPosition = Vector2.new(0, layout.AbsoluteContentSize.Y + 1000)
     end)
@@ -315,7 +339,7 @@ TabBtns["chat"].TextColor3 = Color3.fromRGB(255, 255, 255)
 Pages["chat"].Visible = true
 
 ---------------------------------------------------
--- KHU VỰC NHẬP TIN NHẮN (FIX LỖI TRÀN CHỮ)
+-- KHU VỰC NHẬP TIN NHẮN 
 ---------------------------------------------------
 local InputContainer = Instance.new("Frame", MainFrame)
 InputContainer.Size = UDim2.new(1, -20, 0, 55)
@@ -336,10 +360,8 @@ MsgBox.TextSize = 13
 MsgBox.TextXAlignment = Enum.TextXAlignment.Left
 MsgBox.ClearTextOnFocus = false
 MsgBox.ZIndex = 6
-
--- FIX LỖI TRÀN CHỮ RA NGOÀI KHUNG (V32)
 MsgBox.ClipsDescendants = true 
-MsgBox.TextWrapped = false -- Tắt textwrap để cuộn ngang mượt mà
+MsgBox.TextWrapped = false 
 
 Instance.new("UICorner", MsgBox).CornerRadius = UDim.new(0, 8)
 Instance.new("UIPadding", MsgBox).PaddingLeft = UDim.new(0, 10)
@@ -379,7 +401,7 @@ MinBtn.MouseButton1Click:Connect(function()
 end)
 
 ---------------------------------------------------
--- RENDER TIN NHẮN & NÚT COPY (V32)
+-- RENDER TIN NHẮN & NÚT COPY (V32.1)
 ---------------------------------------------------
 local msgFrames = {}
 local seenMsgs = {}
@@ -437,7 +459,7 @@ local function renderMessage(msgData)
 
     local InfoBox = Instance.new("Frame", Header)
     InfoBox.BackgroundTransparency = 1
-    InfoBox.Size = UDim2.new(1, -70, 1, 0) -- Dành không gian cho nút Copy
+    InfoBox.Size = UDim2.new(1, -70, 1, 0)
     InfoBox.Position = UDim2.new(0, 40, 0, 0)
     InfoBox.ZIndex = 7
     
@@ -465,8 +487,7 @@ local function renderMessage(msgData)
     UserLbl.TextXAlignment = Enum.TextXAlignment.Left
     UserLbl.ZIndex = 7
 
-    -- NÚT COPY TIN NHẮN (V32)
-        -- NÚT COPY TIN NHẮN (V32 - Đã chỉnh sửa)
+    -- NÚT COPY TIN NHẮN
     local CopyBtn = Instance.new("ImageButton", Header)
     CopyBtn.Size = UDim2.new(0, 24, 0, 24)
     CopyBtn.Position = UDim2.new(1, 0, 0, 0)
@@ -474,7 +495,7 @@ local function renderMessage(msgData)
     CopyBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 65)
     CopyBtn.BackgroundTransparency = 0.5
     CopyBtn.Image = "rbxassetid://108759291773501"
-    CopyBtn.ScaleType = Enum.ScaleType.Fit -- Chỉnh lại ScaleType thành Fit để ảnh không bị biến dạng
+    CopyBtn.ScaleType = Enum.ScaleType.Fit
     CopyBtn.ImageColor3 = Color3.fromRGB(180, 180, 200)
     CopyBtn.AutoButtonColor = false
     CopyBtn.ZIndex = 8
@@ -494,16 +515,14 @@ local function renderMessage(msgData)
             local contentToCopy = (text and text ~= "") and text or imgLink
             setclipboard(contentToCopy)
             
-            -- Animation giật nhẹ & Sáng lên (Glow effect)
             TweenService:Create(CopyBtn, TweenInfo.new(0.1), {
                 Size = UDim2.new(0, 20, 0, 20), 
-                BackgroundTransparency = 0, -- Giảm độ trong suốt về 0 để nền sáng chói
-                BackgroundColor3 = Color3.fromRGB(100, 100, 120) -- Đổi màu nền sáng hơn
+                BackgroundTransparency = 0, 
+                BackgroundColor3 = Color3.fromRGB(100, 100, 120) 
             }):Play()
             
             task.wait(0.15)
             
-            -- Trả về trạng thái Hover (chuột vẫn đang để trên nút)
             TweenService:Create(CopyBtn, TweenInfo.new(0.1), {
                 Size = UDim2.new(0, 24, 0, 24), 
                 BackgroundTransparency = 0.2, 
@@ -535,25 +554,30 @@ local function renderMessage(msgData)
         TextLbl.ZIndex = 7
     end
 
+    -- HIỂN THỊ ẢNH (V32.1 - Sửa tràn viền & Crop)
     if imgLink and imgLink ~= "" then
         local ImgFrame = Instance.new("Frame", Frame)
         ImgFrame.SizeConstraint = Enum.SizeConstraint.RelativeXX
         ImgFrame.Size = UDim2.new(1, 0, 1, 0)
         ImgFrame.BackgroundTransparency = 1
         ImgFrame.ZIndex = 7
+        ImgFrame.ClipsDescendants = true -- Cắt phần bị lố ra khỏi khung
+        Instance.new("UICorner", ImgFrame).CornerRadius = UDim.new(0, 10)
         
         local ImgLabel = Instance.new("ImageLabel", ImgFrame)
-        ImgLabel.Size = UDim2.new(1, 0, 1, 0)
+        ImgLabel.Size = UDim2.new(1, 0, 1, 0) -- Full 100%
+        ImgLabel.Position = UDim2.new(0, 0, 0, 0)
         ImgLabel.BackgroundTransparency = 1
-        ImgLabel.ScaleType = Enum.ScaleType.Fit
+        ImgLabel.ScaleType = Enum.ScaleType.Crop -- Crop đẹp nhất
         ImgLabel.ZIndex = 7
-        Instance.new("UICorner", ImgLabel).CornerRadius = UDim.new(0, 6)
+        Instance.new("UICorner", ImgLabel).CornerRadius = UDim.new(0, 10) -- Khớp với viền UI
 
         task.spawn(function()
             local asset = getCacheAsset(imgLink)
             if asset then 
                 ImgLabel.Image = asset 
             else
+                ImgFrame.SizeConstraint = Enum.SizeConstraint.RelativeXY
                 ImgFrame.Size = UDim2.new(1, 0, 0, 25)
                 ImgLabel:Destroy()
                 local ErrLbl = Instance.new("TextLabel", ImgFrame)
@@ -762,4 +786,4 @@ task.spawn(function()
     end
 end)
 
-print("Altis Hub - Global Chat V32 đã khởi động thành công!")
+print("Altis Hub - Global Chat V32.1 đã khởi động thành công!")
