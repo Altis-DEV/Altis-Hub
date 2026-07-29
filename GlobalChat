@@ -538,7 +538,7 @@ local function renderMessage(msgData)
     if imgLink and imgLink ~= "" then
         local ImgFrame = Instance.new("Frame", Frame)
         ImgFrame.SizeConstraint = Enum.SizeConstraint.RelativeXX
-        ImgFrame.Size = UDim2.new(0.6, 0, 0.6, 0)
+        ImgFrame.Size = UDim2.new(1, 0, 1, 0)
         ImgFrame.BackgroundTransparency = 1
         ImgFrame.ZIndex = 7
         
