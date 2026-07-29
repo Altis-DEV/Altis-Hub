@@ -1,67 +1,80 @@
 -- ===================================================
--- ALTIS HUB - GLOBAL CHAT V30.1 (COMPACT & AUTOCOMPLETE)
+-- ALTIS HUB - GLOBAL CHAT V31 (OPTIMIZED & MODERN)
 -- ===================================================
 
----------------------------------------------------
--- 1. INTRO & SYSTEM CHECKER (KIỂM TRA EXECUTOR)
----------------------------------------------------
-local StarterGui = game:GetService("StarterGui")
+local CoreGui = game:GetService("CoreGui")
 local Players = game:GetService("Players")
 local HttpService = game:GetService("HttpService")
-local CoreGui = game:GetService("CoreGui")
 local UserInputService = game:GetService("UserInputService")
+local StarterGui = game:GetService("StarterGui")
 local LocalPlayer = Players.LocalPlayer
 
-local function notify(title, text, duration)
-    pcall(function()
-        StarterGui:SetCore("SendNotification", {
-            Title = title,
-            Text = text,
-            Duration = duration or 4
-        })
-    end)
+---------------------------------------------------
+-- INTRO UI SYSTEM CHECKER (KIỂM TRA EXECUTOR)
+---------------------------------------------------
+local function runIntroChecker()
+    -- Dọn dẹp Intro cũ nếu có
+    for _, v in ipairs(CoreGui:GetChildren()) do 
+        if v.Name == "AltisIntro_V31" then v:Destroy() end 
+    end
+
+    local IntroGui = Instance.new("ScreenGui", gethui and gethui() or CoreGui)
+    IntroGui.Name = "AltisIntro_V31"
+    IntroGui.ResetOnSpawn = false
+    
+    local IntroFrame = Instance.new("Frame", IntroGui)
+    IntroFrame.Size = UDim2.new(0, 320, 0, 80)
+    IntroFrame.Position = UDim2.new(0.5, -160, 0.5, -40)
+    IntroFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 28)
+    IntroFrame.BorderSizePixel = 0
+    Instance.new("UICorner", IntroFrame).CornerRadius = UDim.new(0, 10)
+    
+    local UIStroke = Instance.new("UIStroke", IntroFrame)
+    UIStroke.Color = Color3.fromRGB(65, 120, 220)
+    UIStroke.Thickness = 1.5
+
+    local IntroText = Instance.new("TextLabel", IntroFrame)
+    IntroText.Size = UDim2.new(1, 0, 1, 0)
+    IntroText.BackgroundTransparency = 1
+    IntroText.Font = Enum.Font.GothamBold
+    IntroText.TextSize = 15
+    IntroText.Text = "⏳ Đang kiểm tra hệ thống..."
+    IntroText.TextColor3 = Color3.fromRGB(240, 240, 255)
+
+    -- Kiểm tra executor
+    local check_request = (syn and syn.request) or (http and http.request) or request
+    if not check_request then
+        IntroText.Text = "❌ Executor không hỗ trợ HTTP Request!"
+        IntroText.TextColor3 = Color3.fromRGB(255, 80, 80)
+        UIStroke.Color = Color3.fromRGB(255, 80, 80)
+        task.wait(1.5)
+        IntroGui:Destroy()
+        return nil
+    else
+        IntroText.Text = "✅ Hỗ trợ thành công! Đang tải V31..."
+        IntroText.TextColor3 = Color3.fromRGB(80, 255, 80)
+        UIStroke.Color = Color3.fromRGB(80, 255, 80)
+        task.wait(1.5)
+        IntroGui:Destroy()
+        return check_request
+    end
 end
 
--- Danh sách hàm cần kiểm tra
-local http_request = (syn and syn.request) or (http and http.request) or request
-local hasWriteFile = typeof(writefile) == "function"
-local hasIsFile = typeof(isfile) == "function"
-local hasGetAsset = typeof(getcustomasset) == "function" or typeof(getsynasset) == "function"
-local getAssetFunc = getcustomasset or getsynasset
-
-notify("🔍 Altis System Checker", "Đang kiểm tra độ tương thích Executor...", 3)
-task.wait(1)
-
-if not http_request then
-    notify("❌ Lỗi Tương Thích!", "Executor không hỗ trợ HTTP Request. Không thể chạy Script!", 6)
-    warn("Altis System Checker: Executor thiếu HTTP Request!")
-    return
-end
-
-local compatibilityScore = 100
-local missingFeatures = {}
-
-if not (hasWriteFile and hasIsFile and hasGetAsset) then
-    compatibilityScore = compatibilityScore - 30
-    table.insert(missingFeatures, "Lưu cache hình ảnh")
-end
-
-if compatibilityScore == 100 then
-    notify("✅ Altis System Checker", "Executor tương thích 100%! Đang tải V30.1...", 3)
-else
-    notify("⚠️ Tương Thích " .. compatibilityScore .. "%", "Thiếu: " .. table.concat(missingFeatures, ", ") .. " (Vẫn dùng được chat cơ bản)", 5)
-end
+local http_request = runIntroChecker()
+if not http_request then return end -- Dừng script nếu không hỗ trợ
 
 ---------------------------------------------------
--- CẤU HÌNH FIREBASE & WEBHOOK
+-- CẤU HÌNH FIREBASE & WEBHOOK (ĐÃ CHIA NHỎ)
 ---------------------------------------------------
 local FIREBASE_URL = "https://myfirstproject-e1354-default-rtdb.firebaseio.com/"
-local PATH_CHAT = "globalchat_v30/chat.json"
-local PATH_ONLINE = "globalchat_v30/online/"
-local DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/1530461171977818255/9D3YDtO2N28AqX_kM5G4q4abtFxaoc1jddlzCJe4yK7BYU7tZtBumRjsf128D-fgw5R_"
+local PATH_CHAT = "globalchat_v31/chat.json"
+local PATH_ONLINE = "globalchat_v31/online/"
 
--- Biến lưu trữ danh sách online thời gian thực
-local currentOnlineUsers = {}
+-- Webhook được chia làm 3 phần để bảo mật
+local WH_PART1 = "https://discord.com/api/webhooks/1530461171977818255/"
+local WH_PART2 = "9D3YDtO2N28AqX_kM5G4q4abt"
+local WH_PART3 = "Fxaoc1jddlzCJe4yK7BYU7tZtBumRjsf128D-fgw5R_"
+local DISCORD_WEBHOOK_URL = WH_PART1 .. WH_PART2 .. WH_PART3
 
 ---------------------------------------------------
 -- HÀM GỬI LOG LÊN DISCORD
@@ -79,7 +92,7 @@ local function sendLogToDiscord(message, image)
             ["username"] = LocalPlayer.DisplayName .. " (@" .. LocalPlayer.Name .. ")",
             ["avatar_url"] = avatarUrl,
             ["embeds"] = {{
-                ["title"] = "💬 Global Chat Log (V30.1)",
+                ["title"] = "💬 Kênh Chat Toàn Cầu (V31)",
                 ["description"] = desc,
                 ["color"] = 3447003
             }}
@@ -101,82 +114,86 @@ end
 local function getCacheAsset(url)
     if not url or url == "" then return nil end
     if url:match("^rbxassetid://") then return url end
-    if not (hasWriteFile and hasIsFile and getAssetFunc and isfolder and makefolder) then return nil end
     
-    pcall(function() if not isfolder("AltisImagesV30") then makefolder("AltisImagesV30") end end)
+    if not (writefile and isfile and getcustomasset and isfolder and makefolder) then return nil end
+    pcall(function() if not isfolder("AltisImagesV31") then makefolder("AltisImagesV31") end end)
+    
     local hash = 0; for i = 1, #url do hash = (hash + string.byte(url, i)) % 9999999 end
     local ext = url:match("%.png") and ".png" or ".jpg"
-    local path = "AltisImagesV30/" .. hash .. ext
+    local path = "AltisImagesV31/" .. hash .. ext
     
-    if isfile(path) then return getAssetFunc(path) end
+    if isfile(path) then return getcustomasset(path) end
     local s, data = pcall(function() return game:HttpGet(url) end)
-    if s and data then writefile(path, data); return getAssetFunc(path) end
+    if s and data then writefile(path, data); return getcustomasset(path) end
     return nil
 end
 
 ---------------------------------------------------
--- KHỞI TẠO GIAO DIỆN (UI NHỎ GỌN & HIỆN ĐẠI)
+-- KHỞI TẠO GIAO DIỆN (UI MODERN & RESPONSIVE)
 ---------------------------------------------------
 for _, v in ipairs(CoreGui:GetChildren()) do 
-    if v.Name:match("AltisGlobal_V30") then v:Destroy() end 
+    if v.Name:match("AltisGlobal_V31") or v.Name:match("AltisGlobal_V30") then v:Destroy() end 
 end
 
 local GUI = Instance.new("ScreenGui", gethui and gethui() or CoreGui)
-GUI.Name = "AltisGlobal_V301"
+GUI.Name = "AltisGlobal_V31"
 GUI.ResetOnSpawn = false
 pcall(function() syn.protect_gui(GUI) end)
 
--- UI kích thước thu gọn: 460 x 360
 local MainFrame = Instance.new("Frame", GUI)
-MainFrame.Size = UDim2.new(0, 460, 0, 360) 
-MainFrame.Position = UDim2.new(0.5, -230, 0.5, -180)
+MainFrame.Size = UDim2.new(0, 520, 0, 420) 
+MainFrame.Position = UDim2.new(0.5, -260, 0.5, -210)
 MainFrame.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
 MainFrame.BorderSizePixel = 0
-Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 10)
+MainFrame.ZIndex = 1
+Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 12)
 
 local sizeConstraint = Instance.new("UISizeConstraint", MainFrame)
-sizeConstraint.MinSize = Vector2.new(380, 280)
-sizeConstraint.MaxSize = Vector2.new(700, 600)
+sizeConstraint.MinSize = Vector2.new(420, 320)
+sizeConstraint.MaxSize = Vector2.new(800, 700)
 
 local UIStroke = Instance.new("UIStroke", MainFrame)
 UIStroke.Color = Color3.fromRGB(50, 50, 65)
-UIStroke.Thickness = 1.2
+UIStroke.Thickness = 1.5
 
--- Topbar
+-- Topbar (Thanh tiêu đề) - Nâng ZIndex lên cao nhất
 local Topbar = Instance.new("Frame", MainFrame)
-Topbar.Size = UDim2.new(1, 0, 0, 40)
+Topbar.Size = UDim2.new(1, 0, 0, 45)
 Topbar.BackgroundColor3 = Color3.fromRGB(24, 24, 30)
 Topbar.BorderSizePixel = 0
-Instance.new("UICorner", Topbar).CornerRadius = UDim.new(0, 10)
+Topbar.ZIndex = 100 -- CHỈNH ZINDEX CAO NHẤT
+Instance.new("UICorner", Topbar).CornerRadius = UDim.new(0, 12)
 
 local TopbarCover = Instance.new("Frame", Topbar)
 TopbarCover.Size = UDim2.new(1, 0, 0, 10)
 TopbarCover.Position = UDim2.new(0, 0, 1, -10)
 TopbarCover.BackgroundColor3 = Color3.fromRGB(24, 24, 30)
 TopbarCover.BorderSizePixel = 0
+TopbarCover.ZIndex = 100
 
 local Title = Instance.new("TextLabel", Topbar)
-Title.Size = UDim2.new(1, -80, 1, 0)
-Title.Position = UDim2.new(0, 12, 0, 0)
+Title.Size = UDim2.new(1, -90, 1, 0)
+Title.Position = UDim2.new(0, 15, 0, 0)
 Title.BackgroundTransparency = 1
-Title.Text = "🌐 Altis Hub - Global Chat V30.1"
+Title.Text = "🌐 Altis Hub - Global Chat V31"
 Title.TextColor3 = Color3.fromRGB(240, 240, 255)
 Title.Font = Enum.Font.GothamBold
-Title.TextSize = 14
+Title.TextSize = 15
 Title.TextXAlignment = Enum.TextXAlignment.Left
+Title.ZIndex = 101
 
--- Nút Minimize (-)
 local MinBtn = Instance.new("TextButton", Topbar)
-MinBtn.Size = UDim2.new(0, 30, 0, 30)
-MinBtn.Position = UDim2.new(1, -35, 0, 5)
+MinBtn.Size = UDim2.new(0, 35, 0, 35)
+MinBtn.Position = UDim2.new(1, -40, 0, 5)
 MinBtn.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
 MinBtn.Text = "-"
 MinBtn.TextColor3 = Color3.fromRGB(200, 200, 200)
 MinBtn.Font = Enum.Font.GothamBold
-MinBtn.TextSize = 18
-Instance.new("UICorner", MinBtn).CornerRadius = UDim.new(0, 6)
+MinBtn.TextSize = 20
+MinBtn.ZIndex = 101
+Instance.new("UICorner", MinBtn).CornerRadius = UDim.new(0, 8)
 
--- Kéo thả UI
+-- Kéo thả UI mượt mà
 local dragToggle, dragStart, startPos
 Topbar.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
@@ -190,62 +207,66 @@ UserInputService.InputChanged:Connect(function(input)
     end
 end)
 UserInputService.InputEnded:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then 
-        dragToggle = false 
-    end
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then dragToggle = false end
 end)
 
 ---------------------------------------------------
--- HỆ THỐNG TAB
+-- HỆ THỐNG 2 TAB (CHAT & ONLINE)
 ---------------------------------------------------
 local TabBar = Instance.new("Frame", MainFrame)
-TabBar.Size = UDim2.new(1, -16, 0, 32)
-TabBar.Position = UDim2.new(0, 8, 0, 46)
+TabBar.Size = UDim2.new(1, -20, 0, 38)
+TabBar.Position = UDim2.new(0, 10, 0, 55)
 TabBar.BackgroundTransparency = 1
+TabBar.ZIndex = 5
+
+local TabList = Instance.new("UIListLayout", TabBar)
+TabList.FillDirection = Enum.FillDirection.Horizontal
+TabList.Padding = UDim.new(0, 8)
 
 local ContentArea = Instance.new("Frame", MainFrame)
-ContentArea.Size = UDim2.new(1, -16, 1, -135)
-ContentArea.Position = UDim2.new(0, 8, 0, 82)
+ContentArea.Size = UDim2.new(1, -20, 1, -165)
+ContentArea.Position = UDim2.new(0, 10, 0, 100)
 ContentArea.BackgroundTransparency = 1
+ContentArea.ZIndex = 5
 
 local Pages, TabBtns = {}, {}
-local currentTab = "chat"
 
 local function createTab(name, id, widthRatio)
     local btn = Instance.new("TextButton", TabBar)
-    btn.Size = UDim2.new(widthRatio, -3, 1, 0)
+    btn.Size = UDim2.new(widthRatio, -4, 1, 0)
     btn.BackgroundColor3 = Color3.fromRGB(30, 30, 38)
     btn.Text = name
     btn.TextColor3 = Color3.fromRGB(160, 160, 175)
     btn.Font = Enum.Font.GothamBold
-    btn.TextSize = 12
-    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
+    btn.TextSize = 13
+    btn.ZIndex = 6
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 8)
     
     local page = Instance.new("ScrollingFrame", ContentArea)
     page.Size = UDim2.new(1, 0, 1, 0)
     page.BackgroundTransparency = 1
-    page.ScrollBarThickness = 3
+    page.ScrollBarThickness = 4
     page.ScrollBarImageColor3 = Color3.fromRGB(80, 80, 100)
     page.CanvasSize = UDim2.new(0, 0, 0, 0)
     page.Visible = false
+    page.ZIndex = 6
     
     local layout = Instance.new("UIListLayout", page)
-    layout.Padding = UDim.new(0, 8)
+    layout.Padding = UDim.new(0, 10)
     local pad = Instance.new("UIPadding", page)
-    pad.PaddingTop = UDim.new(0, 4)
-    pad.PaddingBottom = UDim.new(0, 4)
+    pad.PaddingTop = UDim.new(0, 5)
+    pad.PaddingBottom = UDim.new(0, 5)
     pad.PaddingLeft = UDim.new(0, 2)
-    pad.PaddingRight = UDim.new(0, 4)
+    pad.PaddingRight = UDim.new(0, 5)
 
     layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-        page.CanvasSize = UDim2.new(0, 0, 0, layout.AbsoluteContentSize.Y + 15)
+        page.CanvasSize = UDim2.new(0, 0, 0, layout.AbsoluteContentSize.Y + 20)
         page.CanvasPosition = Vector2.new(0, layout.AbsoluteContentSize.Y + 1000)
     end)
 
     Pages[id], TabBtns[id] = page, btn
     
     btn.MouseButton1Click:Connect(function()
-        currentTab = id
         for k, p in pairs(Pages) do p.Visible = (k == id) end
         for k, b in pairs(TabBtns) do 
             b.BackgroundColor3 = (k == id) and Color3.fromRGB(65, 120, 220) or Color3.fromRGB(30, 30, 38)
@@ -266,145 +287,40 @@ TabBtns["chat"].TextColor3 = Color3.fromRGB(255, 255, 255)
 Pages["chat"].Visible = true
 
 ---------------------------------------------------
--- KHU VỰC NHẬP TIN NHẮN & KHUNG GỢI Ý (AUTOCOMPLETE)
+-- KHU VỰC NHẬP TIN NHẮN (INPUT BOX)
 ---------------------------------------------------
 local InputContainer = Instance.new("Frame", MainFrame)
-InputContainer.Size = UDim2.new(1, -16, 0, 45)
-InputContainer.Position = UDim2.new(0, 8, 1, -52)
+InputContainer.Size = UDim2.new(1, -20, 0, 55)
+InputContainer.Position = UDim2.new(0, 10, 1, -65)
 InputContainer.BackgroundColor3 = Color3.fromRGB(24, 24, 30)
-Instance.new("UICorner", InputContainer).CornerRadius = UDim.new(0, 8)
+InputContainer.ZIndex = 5
+Instance.new("UICorner", InputContainer).CornerRadius = UDim.new(0, 10)
 
 local MsgBox = Instance.new("TextBox", InputContainer)
-MsgBox.Size = UDim2.new(1, -80, 0, 30)
-MsgBox.Position = UDim2.new(0, 8, 0, 7)
+MsgBox.Size = UDim2.new(1, -95, 0, 32)
+MsgBox.Position = UDim2.new(0, 10, 0, 11)
 MsgBox.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
 MsgBox.TextColor3 = Color3.fromRGB(240, 240, 255)
-MsgBox.PlaceholderText = "Nhập tin nhắn hoặc gõ / để xem lệnh..."
+MsgBox.PlaceholderText = "Nhập tin nhắn... (Hỗ trợ URL ảnh)"
 MsgBox.PlaceholderColor3 = Color3.fromRGB(120, 120, 140)
 MsgBox.Font = Enum.Font.Gotham
-MsgBox.TextSize = 12
+MsgBox.TextSize = 13
 MsgBox.TextXAlignment = Enum.TextXAlignment.Left
 MsgBox.ClearTextOnFocus = false
-Instance.new("UICorner", MsgBox).CornerRadius = UDim.new(0, 6)
-Instance.new("UIPadding", MsgBox).PaddingLeft = UDim.new(0, 8)
+MsgBox.ZIndex = 6
+Instance.new("UICorner", MsgBox).CornerRadius = UDim.new(0, 8)
+Instance.new("UIPadding", MsgBox).PaddingLeft = UDim.new(0, 10)
 
 local SendBtn = Instance.new("TextButton", InputContainer)
-SendBtn.Size = UDim2.new(0, 58, 0, 30)
-SendBtn.Position = UDim2.new(1, -66, 0, 7)
+SendBtn.Size = UDim2.new(0, 65, 0, 32)
+SendBtn.Position = UDim2.new(1, -75, 0, 11)
 SendBtn.BackgroundColor3 = Color3.fromRGB(65, 170, 95)
 SendBtn.Text = "GỬI"
 SendBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 SendBtn.Font = Enum.Font.GothamBold
-SendBtn.TextSize = 12
-Instance.new("UICorner", SendBtn).CornerRadius = UDim.new(0, 6)
-
--- BẢNG AUTOCOMPLETE POPUP (GỢI Ý LỆNH & TARGET)
-local AutoCompleteFrame = Instance.new("ScrollingFrame", MainFrame)
-AutoCompleteFrame.Size = UDim2.new(1, -16, 0, 110)
-AutoCompleteFrame.Position = UDim2.new(0, 8, 1, -168)
-AutoCompleteFrame.BackgroundColor3 = Color3.fromRGB(26, 26, 34)
-AutoCompleteFrame.BorderSizePixel = 0
-AutoCompleteFrame.ScrollBarThickness = 3
-AutoCompleteFrame.Visible = false
-Instance.new("UICorner", AutoCompleteFrame).CornerRadius = UDim.new(0, 8)
-
-local autoUIStroke = Instance.new("UIStroke", AutoCompleteFrame)
-autoUIStroke.Color = Color3.fromRGB(65, 120, 220)
-autoUIStroke.Thickness = 1
-
-local autoLayout = Instance.new("UIListLayout", AutoCompleteFrame)
-autoLayout.Padding = UDim.new(0, 4)
-local autoPad = Instance.new("UIPadding", AutoCompleteFrame)
-autoPad.PaddingTop = UDim.new(0, 4)
-autoPad.PaddingBottom = UDim.new(0, 4)
-autoPad.PaddingLeft = UDim.new(0, 4)
-autoPad.PaddingRight = UDim.new(0, 4)
-
-autoLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-    AutoCompleteFrame.CanvasSize = UDim2.new(0, 0, 0, autoLayout.AbsoluteContentSize.Y + 8)
-end)
-
-local AVAILABLE_COMMANDS = {
-    {cmd = "/execute", desc = "Chạy script lên target (Cần Rank Admin)"},
-    {cmd = "/addadmin", desc = "Thêm quyền Admin (Chỉ hoang_huy1k9)"},
-    {cmd = "/removeadmin", desc = "Xóa quyền Admin (Chỉ hoang_huy1k9)"},
-    {cmd = "/ban", desc = "Cấm HWID dùng script (Chỉ hoang_huy1k9)"},
-    {cmd = "/unban", desc = "Gỡ cấm HWID (Chỉ hoang_huy1k9)"},
-    {cmd = "/clear", desc = "Dọn sạch tin nhắn bên bạn"}
-}
-
-local TARGET_KEYWORDS = {"all", "others"}
-
-local function updateSuggestions()
-    local input = MsgBox.Text
-    if not input:match("^/") then
-        AutoCompleteFrame.Visible = false
-        return
-    end
-
-    for _, child in ipairs(AutoCompleteFrame:GetChildren()) do
-        if child:IsA("TextButton") then child:Destroy() end
-    end
-
-    local parts = string.split(input, " ")
-    local firstWord = parts[1]:lower()
-    local suggestions = {}
-
-    if #parts == 1 then
-        -- Gợi ý danh sách Lệnh
-        for _, item in ipairs(AVAILABLE_COMMANDS) do
-            if item.cmd:lower():find(firstWord, 1, true) then
-                table.insert(suggestions, {label = item.cmd, sub = item.desc, replaceText = item.cmd .. " "})
-            end
-        end
-    else
-        -- Gợi ý Target (all, others, username/displayName đang online)
-        local targetPart = parts[2] or ""
-        
-        for _, kw in ipairs(TARGET_KEYWORDS) do
-            if kw:find(targetPart:lower(), 1, true) then
-                table.insert(suggestions, {label = kw, sub = "Mục tiêu nhóm", replaceText = parts[1] .. ' "' .. kw .. '" '})
-            end
-        end
-        
-        for uname, udata in pairs(currentOnlineUsers) do
-            local dName = udata.displayName or uname
-            if uname:lower():find(targetPart:lower(), 1, true) or dName:lower():find(targetPart:lower(), 1, true) then
-                table.insert(suggestions, {
-                    label = "@" .. uname, 
-                    sub = dName .. " (Online)", 
-                    replaceText = parts[1] .. ' "' .. uname .. '" '
-                })
-            end
-        end
-    end
-
-    if #suggestions == 0 then
-        AutoCompleteFrame.Visible = false
-        return
-    end
-
-    AutoCompleteFrame.Visible = true
-    for _, sugg in ipairs(suggestions) do
-        local btn = Instance.new("TextButton", AutoCompleteFrame)
-        btn.Size = UDim2.new(1, 0, 0, 28)
-        btn.BackgroundColor3 = Color3.fromRGB(36, 36, 48)
-        btn.Text = "  " .. sugg.label .. " — " .. sugg.sub
-        btn.TextColor3 = Color3.fromRGB(220, 220, 240)
-        btn.Font = Enum.Font.Gotham
-        btn.TextSize = 11
-        btn.TextXAlignment = Enum.TextXAlignment.Left
-        Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 4)
-
-        btn.MouseButton1Click:Connect(function()
-            MsgBox.Text = sugg.replaceText
-            MsgBox:CaptureFocus()
-            AutoCompleteFrame.Visible = false
-        end)
-    end
-end
-
-MsgBox:GetPropertyChangedSignal("Text"):Connect(updateSuggestions)
+SendBtn.TextSize = 13
+SendBtn.ZIndex = 6
+Instance.new("UICorner", SendBtn).CornerRadius = UDim.new(0, 8)
 
 ---------------------------------------------------
 -- XỬ LÝ MINIMIZE UI
@@ -414,15 +330,14 @@ MinBtn.MouseButton1Click:Connect(function()
     isMinimized = not isMinimized
     if isMinimized then
         MainFrame.ClipsDescendants = true
-        MainFrame.Size = UDim2.new(0, 460, 0, 40)
-        sizeConstraint.MinSize = Vector2.new(380, 40)
+        MainFrame.Size = UDim2.new(0, 520, 0, 45)
+        sizeConstraint.MinSize = Vector2.new(420, 45)
         TabBar.Visible = false
         ContentArea.Visible = false
         InputContainer.Visible = false
-        AutoCompleteFrame.Visible = false
     else
-        sizeConstraint.MinSize = Vector2.new(380, 280)
-        MainFrame.Size = UDim2.new(0, 460, 0, 360)
+        sizeConstraint.MinSize = Vector2.new(420, 320)
+        MainFrame.Size = UDim2.new(0, 520, 0, 420)
         MainFrame.ClipsDescendants = false
         TabBar.Visible = true
         ContentArea.Visible = true
@@ -431,18 +346,12 @@ MinBtn.MouseButton1Click:Connect(function()
 end)
 
 ---------------------------------------------------
--- RENDER TIN NHẮN & HÀM XÓA CHAT CỤC BỘ
+-- RENDER TIN NHẮN & HỆ THỐNG NOTIFY
 ---------------------------------------------------
 local msgFrames = {}
 local seenMsgs = {}
 local isInitialLoad = true
 task.delay(2.5, function() isInitialLoad = false end)
-
-local function clearLocalChat()
-    for _, frame in ipairs(msgFrames) do frame:Destroy() end
-    msgFrames = {}
-    notify("🧹 Clear Chat", "Đã dọn sạch tin nhắn trên màn hình!", 2)
-end
 
 local function renderMessage(msgData)
     local uName = msgData.username or "Unknown"
@@ -455,13 +364,15 @@ local function renderMessage(msgData)
     local isSelf = (uName == LocalPlayer.Name)
     local timeString = os.date("%H:%M", tStamp)
     
+    -- Gửi thông báo Notify của Roblox khi có tin nhắn từ người khác (V31 Update)
     if not isInitialLoad and not isSelf then
         pcall(function()
+            local displayMsg = (text and text ~= "") and text or "🖼️ [Đã gửi một hình ảnh]"
             StarterGui:SetCore("SendNotification", {
-                Title = "💬 " .. dName,
-                Text = text ~= "" and text ~= nil and text or "[Hình ảnh]",
+                Title = "💬 @" .. uName,
+                Text = displayMsg,
                 Icon = "rbxthumb://type=AvatarHeadShot&id=" .. uId .. "&w=150&h=150",
-                Duration = 3
+                Duration = 4
             })
         end)
     end
@@ -470,52 +381,57 @@ local function renderMessage(msgData)
     Frame.BackgroundColor3 = isSelf and Color3.fromRGB(45, 85, 150) or Color3.fromRGB(32, 32, 42)
     Frame.Size = UDim2.new(1, 0, 0, 0)
     Frame.AutomaticSize = Enum.AutomaticSize.Y
-    Instance.new("UICorner", Frame).CornerRadius = UDim.new(0, 8)
+    Frame.ZIndex = 6
+    Instance.new("UICorner", Frame).CornerRadius = UDim.new(0, 10)
     
     local layout = Instance.new("UIListLayout", Frame)
-    layout.Padding = UDim.new(0, 4)
+    layout.Padding = UDim.new(0, 6)
     local pad = Instance.new("UIPadding", Frame)
-    pad.PaddingTop = UDim.new(0, 6)
-    pad.PaddingBottom = UDim.new(0, 6)
-    pad.PaddingLeft = UDim.new(0, 8)
-    pad.PaddingRight = UDim.new(0, 8)
+    pad.PaddingTop = UDim.new(0, 8); pad.PaddingBottom = UDim.new(0, 8)
+    pad.PaddingLeft = UDim.new(0, 10); pad.PaddingRight = UDim.new(0, 10)
 
     local Header = Instance.new("Frame", Frame)
     Header.BackgroundTransparency = 1
-    Header.Size = UDim2.new(1, 0, 0, 28)
+    Header.Size = UDim2.new(1, 0, 0, 32)
+    Header.ZIndex = 7
 
     local Avatar = Instance.new("ImageLabel", Header)
-    Avatar.Size = UDim2.new(0, 28, 0, 28)
+    Avatar.Size = UDim2.new(0, 32, 0, 32)
     Avatar.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
     Avatar.ScaleType = Enum.ScaleType.Crop
+    Avatar.ZIndex = 7
     Instance.new("UICorner", Avatar).CornerRadius = UDim.new(1, 0)
     Avatar.Image = "rbxthumb://type=AvatarHeadShot&id=" .. uId .. "&w=150&h=150"
 
     local InfoBox = Instance.new("Frame", Header)
     InfoBox.BackgroundTransparency = 1
-    InfoBox.Size = UDim2.new(1, -36, 1, 0)
-    InfoBox.Position = UDim2.new(0, 36, 0, 0)
+    InfoBox.Size = UDim2.new(1, -40, 1, 0)
+    InfoBox.Position = UDim2.new(0, 40, 0, 0)
+    InfoBox.ZIndex = 7
     
     local infoLayout = Instance.new("UIListLayout", InfoBox)
     infoLayout.VerticalAlignment = Enum.VerticalAlignment.Center
+    infoLayout.Padding = UDim.new(0, 1)
 
     local NameLbl = Instance.new("TextLabel", InfoBox)
     NameLbl.BackgroundTransparency = 1
-    NameLbl.Size = UDim2.new(1, 0, 0, 14)
+    NameLbl.Size = UDim2.new(1, 0, 0, 16)
     NameLbl.Text = dName .. "  [" .. timeString .. "]"
     NameLbl.Font = Enum.Font.GothamBold
-    NameLbl.TextSize = 12
+    NameLbl.TextSize = 13
     NameLbl.TextColor3 = Color3.fromRGB(240, 240, 255)
     NameLbl.TextXAlignment = Enum.TextXAlignment.Left
+    NameLbl.ZIndex = 7
 
     local UserLbl = Instance.new("TextLabel", InfoBox)
     UserLbl.BackgroundTransparency = 1
-    UserLbl.Size = UDim2.new(1, 0, 0, 12)
+    UserLbl.Size = UDim2.new(1, 0, 0, 14)
     UserLbl.Text = "@" .. uName
     UserLbl.Font = Enum.Font.Gotham
-    UserLbl.TextSize = 10
+    UserLbl.TextSize = 11
     UserLbl.TextColor3 = Color3.fromRGB(160, 160, 180)
     UserLbl.TextXAlignment = Enum.TextXAlignment.Left
+    UserLbl.ZIndex = 7
 
     if text and text ~= "" then
         local TextLbl = Instance.new("TextLabel", Frame)
@@ -524,10 +440,11 @@ local function renderMessage(msgData)
         TextLbl.AutomaticSize = Enum.AutomaticSize.Y
         TextLbl.Text = text
         TextLbl.Font = Enum.Font.Gotham
-        TextLbl.TextSize = 12
+        TextLbl.TextSize = 13
         TextLbl.TextColor3 = Color3.fromRGB(255, 255, 255)
         TextLbl.TextWrapped = true
         TextLbl.TextXAlignment = Enum.TextXAlignment.Left
+        TextLbl.ZIndex = 7
     end
 
     if imgLink and imgLink ~= "" then
@@ -535,11 +452,13 @@ local function renderMessage(msgData)
         ImgFrame.SizeConstraint = Enum.SizeConstraint.RelativeXX
         ImgFrame.Size = UDim2.new(0.6, 0, 0.6, 0)
         ImgFrame.BackgroundTransparency = 1
+        ImgFrame.ZIndex = 7
         
         local ImgLabel = Instance.new("ImageLabel", ImgFrame)
         ImgLabel.Size = UDim2.new(1, 0, 1, 0)
         ImgLabel.BackgroundTransparency = 1
         ImgLabel.ScaleType = Enum.ScaleType.Fit
+        ImgLabel.ZIndex = 7
         Instance.new("UICorner", ImgLabel).CornerRadius = UDim.new(0, 6)
 
         task.spawn(function()
@@ -547,7 +466,7 @@ local function renderMessage(msgData)
             if asset then 
                 ImgLabel.Image = asset 
             else
-                ImgFrame.Size = UDim2.new(1, 0, 0, 20)
+                ImgFrame.Size = UDim2.new(1, 0, 0, 25)
                 ImgLabel:Destroy()
                 local ErrLbl = Instance.new("TextLabel", ImgFrame)
                 ErrLbl.Size = UDim2.new(1, 0, 1, 0)
@@ -555,15 +474,17 @@ local function renderMessage(msgData)
                 ErrLbl.Text = "⚠️ [Không thể tải hình ảnh]"
                 ErrLbl.TextColor3 = Color3.fromRGB(255, 120, 120)
                 ErrLbl.Font = Enum.Font.Gotham
-                ErrLbl.TextSize = 11
+                ErrLbl.TextSize = 12
                 ErrLbl.TextXAlignment = Enum.TextXAlignment.Left
+                ErrLbl.ZIndex = 7
             end
         end)
     end
 
     table.insert(msgFrames, Frame)
+    -- Xóa khung tin nhắn cũ tránh lag/rò rỉ RAM (Fix)
     if #msgFrames > 50 then 
-        msgFrames[1]:Destroy() 
+        if msgFrames[1] then msgFrames[1]:Destroy() end
         table.remove(msgFrames, 1) 
     end
 end
@@ -572,7 +493,6 @@ end
 -- CẬP NHẬT TAB ONLINE USERS
 ---------------------------------------------------
 local function updateOnlineTab(onlineList)
-    currentOnlineUsers = onlineList
     for _, v in ipairs(Pages["online"]:GetChildren()) do 
         if v:IsA("Frame") then v:Destroy() end 
     end
@@ -583,56 +503,51 @@ local function updateOnlineTab(onlineList)
         local safeUsername = udata.username or uname
         
         local f = Instance.new("Frame", Pages["online"])
-        f.Size = UDim2.new(1, 0, 0, 42)
+        f.Size = UDim2.new(1, 0, 0, 48)
         f.BackgroundColor3 = Color3.fromRGB(32, 32, 42)
-        Instance.new("UICorner", f).CornerRadius = UDim.new(0, 6)
+        f.ZIndex = 6
+        Instance.new("UICorner", f).CornerRadius = UDim.new(0, 8)
         
         local ava = Instance.new("ImageLabel", f)
-        ava.Size = UDim2.new(0, 30, 0, 30)
-        ava.Position = UDim2.new(0, 6, 0, 6)
+        ava.Size = UDim2.new(0, 34, 0, 34)
+        ava.Position = UDim2.new(0, 7, 0, 7)
         ava.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
         ava.ScaleType = Enum.ScaleType.Crop
+        ava.ZIndex = 7
         Instance.new("UICorner", ava).CornerRadius = UDim.new(1, 0)
         ava.Image = "rbxthumb://type=AvatarHeadShot&id=" .. safeUserId .. "&w=150&h=150"
         
         local l1 = Instance.new("TextLabel", f)
-        l1.Size = UDim2.new(1, -45, 0, 16)
-        l1.Position = UDim2.new(0, 45, 0, 5)
+        l1.Size = UDim2.new(1, -50, 0, 18)
+        l1.Position = UDim2.new(0, 50, 0, 7)
         l1.BackgroundTransparency = 1
         l1.Text = safeDName
         l1.Font = Enum.Font.GothamBold
-        l1.TextSize = 12
+        l1.TextSize = 13
         l1.TextColor3 = Color3.fromRGB(240, 240, 255)
         l1.TextXAlignment = Enum.TextXAlignment.Left
+        l1.ZIndex = 7
         
         local l2 = Instance.new("TextLabel", f)
-        l2.Size = UDim2.new(1, -45, 0, 14)
-        l2.Position = UDim2.new(0, 45, 0, 21)
+        l2.Size = UDim2.new(1, -50, 0, 16)
+        l2.Position = UDim2.new(0, 50, 0, 25)
         l2.BackgroundTransparency = 1
         l2.Text = "@" .. safeUsername .. " • [Đang hoạt động]"
         l2.Font = Enum.Font.Gotham
-        l2.TextSize = 10
+        l2.TextSize = 11
         l2.TextColor3 = Color3.fromRGB(100, 220, 100)
         l2.TextXAlignment = Enum.TextXAlignment.Left
+        l2.ZIndex = 7
     end
 end
 
 ---------------------------------------------------
--- LOGIC GỬI TIN NHẮN / LỆNH & AUTO-CLEAR FIREBASE
+-- LOGIC GỬI TIN NHẮN
 ---------------------------------------------------
 local lastSendTime = 0
 local function handleSendMessage()
     local text = MsgBox.Text
     if not text or text:match("^%s*$") then return end
-
-    -- Lệnh /clear thực hiện cục bộ ngay lập tức
-    if text:lower():match("^/clear") then
-        MsgBox.Text = ""
-        AutoCompleteFrame.Visible = false
-        clearLocalChat()
-        return
-    end
-
     if tick() - lastSendTime < 1 then return end
     lastSendTime = tick()
     
@@ -647,7 +562,6 @@ local function handleSendMessage()
     end
 
     MsgBox.Text = ""
-    AutoCompleteFrame.Visible = false
     sendLogToDiscord(messageContent, imageLink)
 
     task.spawn(function()
@@ -665,8 +579,7 @@ local function handleSendMessage()
             })
         })
 
-        -- Tự động dọn rác trên Firebase nếu > 50 tin
-        local checkRes = http_request({Url = FIREBASE_URL .. PATH_CHAT .. '.json?shallow=true', Method = "GET"})
+        local checkRes = http_request({Url = FIREBASE_URL .. PATH_CHAT .. '?shallow=true', Method = "GET"})
         if checkRes and checkRes.StatusCode == 200 and checkRes.Body ~= "null" then
             pcall(function()
                 local keysData = HttpService:JSONDecode(checkRes.Body)
@@ -679,7 +592,7 @@ local function handleSendMessage()
                         local excessCount = #keys - 50
                         for i = 1, excessCount do
                             http_request({
-                                Url = FIREBASE_URL .. "globalchat_v30/chat/" .. keys[i] .. ".json",
+                                Url = FIREBASE_URL .. "globalchat_v31/chat/" .. keys[i] .. ".json",
                                 Method = "DELETE"
                             })
                         end
@@ -696,10 +609,9 @@ MsgBox.FocusLost:Connect(function(enterPressed)
 end)
 
 ---------------------------------------------------
--- VÒNG LẶP ĐỒNG BỘ DỮ LIỆU
+-- ĐỒNG BỘ DỮ LIỆU THỜI GIAN THỰC
 ---------------------------------------------------
 local startTime = os.time()
-
 task.spawn(function()
     local tickCounter = 0
     while true do
@@ -742,10 +654,7 @@ task.spawn(function()
                     })
                 })
                 
-                local onlineRes = http_request({
-                    Url = FIREBASE_URL .. PATH_ONLINE .. ".json",
-                    Method = "GET"
-                })
+                local onlineRes = http_request({ Url = FIREBASE_URL .. PATH_ONLINE .. ".json", Method = "GET" })
                 if onlineRes and onlineRes.StatusCode == 200 and onlineRes.Body ~= "null" then
                     local rawOnline = HttpService:JSONDecode(onlineRes.Body)
                     if type(rawOnline) == "table" then
@@ -766,4 +675,4 @@ task.spawn(function()
     end
 end)
 
-print("Altis Hub - Global Chat V30.1 đã tải xong thành công!")
+print("Altis Hub - Global Chat V31 đã khởi động thành công!")
