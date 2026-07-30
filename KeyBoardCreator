@@ -1,0 +1,271 @@
+local UserInputService = game:GetService("UserInputService")
+local VirtualInputManager = game:GetService("VirtualInputManager")
+local CoreGui = game:GetService("CoreGui")
+local Players = game:GetService("Players")
+
+-- Khởi tạo ScreenGui
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "KeyboardCreatorGUI"
+screenGui.ResetOnSpawn = false
+
+local success = pcall(function()
+    screenGui.Parent = CoreGui
+end)
+if not success then
+    screenGui.Parent = Players.LocalPlayer:WaitForChild("PlayerGui")
+end
+
+-----------------------------------------
+-- HÀM KÉO THẢ CHO MAIN UI (TOPBAR)
+-----------------------------------------
+local function makeDraggable(topbar, frameToMove)
+    local dragging, dragInput, dragStart, startPos
+
+    topbar.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            dragStart = input.Position
+            startPos = frameToMove.Position
+
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    dragging = false
+                end
+            end)
+        end
+    end)
+
+    topbar.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+            dragInput = input
+        end
+    end)
+
+    UserInputService.InputChanged:Connect(function(input)
+        if input == dragInput and dragging then
+            local delta = input.Position - dragStart
+            frameToMove.Position = UDim2.new(
+                startPos.X.Scale, startPos.X.Offset + delta.X, 
+                startPos.Y.Scale, startPos.Y.Offset + delta.Y
+            )
+        end
+    end)
+end
+
+-----------------------------------------
+-- GIAO DIỆN CHÍNH (MAIN UI - ĐÃ THU NHỎ)
+-----------------------------------------
+local mainFrame = Instance.new("Frame")
+mainFrame.Size = UDim2.new(0, 220, 0, 144)
+mainFrame.Position = UDim2.new(0.5, -110, 0.5, -72)
+mainFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 40)
+mainFrame.BorderSizePixel = 0
+mainFrame.Parent = screenGui
+
+local uiCorner = Instance.new("UICorner")
+uiCorner.CornerRadius = UDim.new(0, 6)
+uiCorner.Parent = mainFrame
+
+-- Topbar
+local topbar = Instance.new("Frame")
+topbar.Size = UDim2.new(1, 0, 0, 28)
+topbar.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
+topbar.BorderSizePixel = 0
+topbar.Parent = mainFrame
+local topbarCorner = Instance.new("UICorner")
+topbarCorner.CornerRadius = UDim.new(0, 6)
+topbarCorner.Parent = topbar
+
+local bottomSquare = Instance.new("Frame")
+bottomSquare.Size = UDim2.new(1, 0, 0, 6)
+bottomSquare.Position = UDim2.new(0, 0, 1, -6)
+bottomSquare.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
+bottomSquare.BorderSizePixel = 0
+bottomSquare.Parent = topbar
+
+makeDraggable(topbar, mainFrame)
+
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, -28, 1, 0)
+title.Position = UDim2.new(0, 8, 0, 0)
+title.BackgroundTransparency = 1
+title.Text = "Keyboard Creator"
+title.TextColor3 = Color3.fromRGB(255, 255, 255)
+title.Font = Enum.Font.GothamBold
+title.TextSize = 12
+title.TextXAlignment = Enum.TextXAlignment.Left
+title.Parent = topbar
+
+local minimizeBtn = Instance.new("TextButton")
+minimizeBtn.Size = UDim2.new(0, 28, 0, 28)
+minimizeBtn.Position = UDim2.new(1, -28, 0, 0)
+minimizeBtn.BackgroundTransparency = 1
+minimizeBtn.Text = "-"
+minimizeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+minimizeBtn.Font = Enum.Font.GothamBold
+minimizeBtn.TextSize = 14
+minimizeBtn.Parent = topbar
+
+-- Window Content
+local content = Instance.new("Frame")
+content.Size = UDim2.new(1, 0, 1, -28)
+content.Position = UDim2.new(0, 0, 0, 28)
+content.BackgroundTransparency = 1
+content.Parent = mainFrame
+
+local nameInput = Instance.new("TextBox")
+nameInput.Size = UDim2.new(1, -16, 0, 26)
+nameInput.Position = UDim2.new(0, 8, 0, 10)
+nameInput.BackgroundColor3 = Color3.fromRGB(45, 45, 50)
+nameInput.PlaceholderText = "Tên nút (VD: Combo 1)"
+nameInput.TextColor3 = Color3.fromRGB(255, 255, 255)
+nameInput.Font = Enum.Font.Gotham
+nameInput.TextSize = 11
+nameInput.Parent = content
+Instance.new("UICorner", nameInput).CornerRadius = UDim.new(0, 4)
+
+local keyInput = Instance.new("TextBox")
+keyInput.Size = UDim2.new(1, -16, 0, 26)
+keyInput.Position = UDim2.new(0, 8, 0, 42)
+keyInput.BackgroundColor3 = Color3.fromRGB(45, 45, 50)
+keyInput.PlaceholderText = "Phím bấm (VD: E,R,T)"
+keyInput.TextColor3 = Color3.fromRGB(255, 255, 255)
+keyInput.Font = Enum.Font.Gotham
+keyInput.TextSize = 11
+keyInput.Parent = content
+Instance.new("UICorner", keyInput).CornerRadius = UDim.new(0, 4)
+
+local createBtn = Instance.new("TextButton")
+createBtn.Size = UDim2.new(1, -16, 0, 30)
+createBtn.Position = UDim2.new(0, 8, 0, 76)
+createBtn.BackgroundColor3 = Color3.fromRGB(80, 150, 255)
+createBtn.Text = "TẠO NÚT"
+createBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+createBtn.Font = Enum.Font.GothamBold
+createBtn.TextSize = 11
+createBtn.Parent = content
+Instance.new("UICorner", createBtn).CornerRadius = UDim.new(0, 4)
+
+-- Minimize Function
+local isMinimized = false
+minimizeBtn.MouseButton1Click:Connect(function()
+    isMinimized = not isMinimized
+    content.Visible = not isMinimized
+    if isMinimized then
+        mainFrame.Size = UDim2.new(0, 220, 0, 28)
+    else
+        mainFrame.Size = UDim2.new(0, 220, 0, 144)
+    end
+end)
+
+-----------------------------------------
+-- CHỨC NĂNG TẠO NÚT ẢO (NHỎ GỌN, GIỮ PHÍM & KÉO THẢ)
+-----------------------------------------
+local buttonContainer = Instance.new("Folder")
+buttonContainer.Name = "VirtualButtons"
+buttonContainer.Parent = screenGui
+
+createBtn.MouseButton1Click:Connect(function()
+    local btnName = nameInput.Text
+    local keysStr = keyInput.Text
+    
+    if btnName == "" or keysStr == "" then return end
+    
+    -- Khung chứa nút ảo (Thu nhỏ còn 50x50 thay vì 80x80)
+    local virtualFrame = Instance.new("Frame")
+    virtualFrame.Size = UDim2.new(0, 50, 0, 50)
+    virtualFrame.Position = UDim2.new(0, 50, 0, 50)
+    virtualFrame.BackgroundColor3 = Color3.fromRGB(50, 50, 55)
+    virtualFrame.Parent = buttonContainer
+    Instance.new("UICorner", virtualFrame).CornerRadius = UDim.new(0, 6)
+    
+    -- Nút bấm ảo nhỏ gọn
+    local virtualBtn = Instance.new("TextButton")
+    virtualBtn.Size = UDim2.new(1, 0, 1, 0)
+    virtualBtn.BackgroundTransparency = 1
+    virtualBtn.Text = btnName
+    virtualBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    virtualBtn.Font = Enum.Font.GothamBold
+    virtualBtn.TextSize = 11
+    virtualBtn.TextWrapped = true
+    virtualBtn.Parent = virtualFrame
+    
+    -- Nút X để xóa (Thu nhỏ lại thành 16x16)
+    local deleteBtn = Instance.new("TextButton")
+    deleteBtn.Size = UDim2.new(0, 16, 0, 16)
+    deleteBtn.Position = UDim2.new(1, -16, 0, 0)
+    deleteBtn.BackgroundColor3 = Color3.fromRGB(255, 60, 60)
+    deleteBtn.Text = "X"
+    deleteBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    deleteBtn.Font = Enum.Font.GothamBold
+    deleteBtn.TextSize = 9
+    deleteBtn.Parent = virtualFrame
+    Instance.new("UICorner", deleteBtn).CornerRadius = UDim.new(0, 3)
+    
+    deleteBtn.MouseButton1Click:Connect(function()
+        virtualFrame:Destroy()
+    end)
+    
+    -- Xử lý Kéo thả + Giữ phím trên virtualBtn
+    local dragging = false
+    local dragInput, dragStart, startPos
+    local keysToPress = string.split(keysStr, ",")
+
+    virtualBtn.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            dragStart = input.Position
+            startPos = virtualFrame.Position
+            
+            -- Gửi lệnh GIỮ PHÍM (Key Down)
+            for _, keyRaw in ipairs(keysToPress) do
+                local cleanKey = string.upper(string.match(keyRaw, "^%s*(.-)%s*$"))
+                local successCode, keyCode = pcall(function()
+                    return Enum.KeyCode[cleanKey]
+                end)
+                if successCode and keyCode then
+                    VirtualInputManager:SendKeyEvent(true, keyCode, false, game)
+                end
+            end
+
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    if dragging then
+                        dragging = false
+                        -- Gửi lệnh NHẢ PHÍM (Key Up) khi thả tay ra
+                        for _, keyRaw in ipairs(keysToPress) do
+                            local cleanKey = string.upper(string.match(keyRaw, "^%s*(.-)%s*$"))
+                            local successCode, keyCode = pcall(function()
+                                return Enum.KeyCode[cleanKey]
+                            end)
+                            if successCode and keyCode then
+                                VirtualInputManager:SendKeyEvent(false, keyCode, false, game)
+                            end
+                        end
+                    end
+                end
+            end)
+        end
+    end)
+
+    virtualBtn.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+            dragInput = input
+        end
+    end)
+
+    UserInputService.InputChanged:Connect(function(input)
+        if input == dragInput and dragging then
+            local delta = input.Position - dragStart
+            virtualFrame.Position = UDim2.new(
+                startPos.X.Scale, startPos.X.Offset + delta.X, 
+                startPos.Y.Scale, startPos.Y.Offset + delta.Y
+            )
+        end
+    end)
+    
+    -- Reset Textbox
+    nameInput.Text = ""
+    keyInput.Text = ""
+end)
+
