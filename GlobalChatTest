@@ -1,5 +1,6 @@
 -- ===================================================
--- ALTIS HUB - GLOBAL CHAT V32.1 (ULTIMATE MODERN & SCALE UI)
+-- ALTIS HUB - GLOBAL CHAT V33 (ULTIMATE MODERN & SCALE UI)
+-- [Bản Full Source - Chuẩn Mượt, Đã Bỏ Khóa Viền Drag]
 -- ===================================================
 
 local CoreGui = game:GetService("CoreGui")
@@ -11,20 +12,29 @@ local TweenService = game:GetService("TweenService")
 local LocalPlayer = Players.LocalPlayer
 
 ---------------------------------------------------
--- INTRO UI SYSTEM CHECKER (KIỂM TRA EXECUTOR)
+-- [1] HỆ THỐNG CLEAN-UP ĐỘC QUYỀN (CHỐNG LAG)
+---------------------------------------------------
+if getgenv().AltisV33_Loop then
+    getgenv().AltisV33_Loop = false 
+    task.wait(0.5) 
+end
+getgenv().AltisV33_Loop = true
+
+for _, v in ipairs(CoreGui:GetChildren()) do 
+    if v.Name == "AltisIntro_V33" or v.Name == "AltisGlobal_V33" then v:Destroy() end 
+end
+
+---------------------------------------------------
+-- [2 & 3] INTRO UI HIỆN ĐẠI & PHÂN CẤP HỖ TRỢ
 ---------------------------------------------------
 local function runIntroChecker()
-    for _, v in ipairs(CoreGui:GetChildren()) do 
-        if v.Name == "AltisIntro_V32" then v:Destroy() end 
-    end
-
     local IntroGui = Instance.new("ScreenGui", gethui and gethui() or CoreGui)
-    IntroGui.Name = "AltisIntro_V32"
+    IntroGui.Name = "AltisIntro_V33"
     IntroGui.ResetOnSpawn = false
     
     local IntroFrame = Instance.new("Frame", IntroGui)
-    IntroFrame.Size = UDim2.new(0, 320, 0, 80)
-    IntroFrame.Position = UDim2.new(0.5, -160, 0.5, -40)
+    IntroFrame.Size = UDim2.new(0, 360, 0, 90)
+    IntroFrame.Position = UDim2.new(0.5, -180, 0.5, -45)
     IntroFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 28)
     IntroFrame.BorderSizePixel = 0
     Instance.new("UICorner", IntroFrame).CornerRadius = UDim.new(0, 10)
@@ -34,29 +44,85 @@ local function runIntroChecker()
     UIStroke.Thickness = 1.5
 
     local IntroText = Instance.new("TextLabel", IntroFrame)
-    IntroText.Size = UDim2.new(1, 0, 1, 0)
+    IntroText.Size = UDim2.new(1, 0, 0, 40)
+    IntroText.Position = UDim2.new(0, 0, 0, 25)
     IntroText.BackgroundTransparency = 1
     IntroText.Font = Enum.Font.GothamBold
-    IntroText.TextSize = 15
-    IntroText.Text = "⏳ Đang kiểm tra hệ thống..."
+    IntroText.TextSize = 14
+    IntroText.Text = "⏳ Đang khởi tạo hệ thống..."
     IntroText.TextColor3 = Color3.fromRGB(240, 240, 255)
+    IntroText.TextWrapped = true
 
+    local function updateStatus(text, color)
+        IntroText.Text = text
+        IntroText.TextColor3 = color
+        UIStroke.Color = color
+        task.wait(1)
+    end
+
+    -- BƯỚC 1: KIỂM TRA HTTP
+    updateStatus("⏳ [1/3] Đang kiểm tra HTTP Request...", Color3.fromRGB(240, 240, 100))
     local check_request = (syn and syn.request) or (http and http.request) or request
     if not check_request then
-        IntroText.Text = "❌ Executor không hỗ trợ HTTP Request!"
-        IntroText.TextColor3 = Color3.fromRGB(255, 80, 80)
-        UIStroke.Color = Color3.fromRGB(255, 80, 80)
+        updateStatus("❌ Thất bại! Executor không hỗ trợ HTTP.", Color3.fromRGB(255, 80, 80))
         task.wait(1.5)
         IntroGui:Destroy()
         return nil
-    else
-        IntroText.Text = "✅ Hỗ trợ thành công! Đang tải V32.1..."
-        IntroText.TextColor3 = Color3.fromRGB(80, 255, 80)
-        UIStroke.Color = Color3.fromRGB(80, 255, 80)
-        task.wait(1.5)
-        IntroGui:Destroy()
-        return check_request
     end
+
+    -- BƯỚC 2: KIỂM TRA FILE SYSTEM
+    updateStatus("⏳ [2/3] Đang kiểm tra File System (Cache)...", Color3.fromRGB(240, 240, 100))
+    local file_system_ok = (writefile and isfile and getcustomasset and makefolder)
+    
+    -- BƯỚC 3: KIỂM TRA UI PROTECTION
+    updateStatus("⏳ [3/3] Đang kiểm tra UI Protection...", Color3.fromRGB(240, 240, 100))
+    local ui_protect_ok = (syn and syn.protect_gui) or (gethui)
+
+    -- XỬ LÝ PHÂN CẤP NẾU EXECUTOR CÙI
+    if not file_system_ok or not ui_protect_ok then
+        IntroText.Text = "⚠️ Executor yếu (Thiếu tính năng ảnh/bảo vệ)!\nTiếp tục chạy bản giới hạn?"
+        IntroText.TextColor3 = Color3.fromRGB(255, 180, 50)
+        UIStroke.Color = Color3.fromRGB(255, 180, 50)
+        IntroText.Position = UDim2.new(0, 0, 0, 10)
+
+        local choiceEvent = Instance.new("BindableEvent")
+        
+        local YesBtn = Instance.new("TextButton", IntroFrame)
+        YesBtn.Size = UDim2.new(0, 100, 0, 30)
+        YesBtn.Position = UDim2.new(0.5, -110, 1, -40)
+        YesBtn.BackgroundColor3 = Color3.fromRGB(65, 170, 95)
+        YesBtn.Text = "Có, Tiếp Tục"
+        YesBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+        YesBtn.Font = Enum.Font.GothamBold
+        Instance.new("UICorner", YesBtn).CornerRadius = UDim.new(0, 6)
+
+        local NoBtn = Instance.new("TextButton", IntroFrame)
+        NoBtn.Size = UDim2.new(0, 100, 0, 30)
+        NoBtn.Position = UDim2.new(0.5, 10, 1, -40)
+        NoBtn.BackgroundColor3 = Color3.fromRGB(255, 80, 80)
+        NoBtn.Text = "Không"
+        NoBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+        NoBtn.Font = Enum.Font.GothamBold
+        Instance.new("UICorner", NoBtn).CornerRadius = UDim.new(0, 6)
+
+        YesBtn.MouseButton1Click:Connect(function() choiceEvent:Fire(true) end)
+        NoBtn.MouseButton1Click:Connect(function() choiceEvent:Fire(false) end)
+
+        local proceed = choiceEvent.Event:Wait()
+        choiceEvent:Destroy()
+        
+        if not proceed then
+            IntroGui:Destroy()
+            return nil
+        end
+        YesBtn:Destroy()
+        NoBtn:Destroy()
+        IntroText.Position = UDim2.new(0, 0, 0, 25)
+    end
+
+    updateStatus("✅ Hoàn tất! Đang tải phiên bản V33...", Color3.fromRGB(80, 255, 80))
+    IntroGui:Destroy()
+    return check_request
 end
 
 local http_request = runIntroChecker()
@@ -90,7 +156,7 @@ local function sendLogToDiscord(message, image)
             ["username"] = LocalPlayer.DisplayName .. " (@" .. LocalPlayer.Name .. ")",
             ["avatar_url"] = avatarUrl,
             ["embeds"] = {{
-                ["title"] = "💬 Kênh Chat Toàn Cầu (V32.1)",
+                ["title"] = "💬 Kênh Chat Toàn Cầu (V33)",
                 ["description"] = desc,
                 ["color"] = 3447003
             }}
@@ -114,11 +180,11 @@ local function getCacheAsset(url)
     if url:match("^rbxassetid://") then return url end
     
     if not (writefile and isfile and getcustomasset and isfolder and makefolder) then return nil end
-    pcall(function() if not isfolder("AltisImagesV32") then makefolder("AltisImagesV32") end end)
+    pcall(function() if not isfolder("AltisImagesV33") then makefolder("AltisImagesV33") end end)
     
     local hash = 0; for i = 1, #url do hash = (hash + string.byte(url, i)) % 9999999 end
     local ext = url:match("%.png") and ".png" or ".jpg"
-    local path = "AltisImagesV32/" .. hash .. ext
+    local path = "AltisImagesV33/" .. hash .. ext
     
     if isfile(path) then return getcustomasset(path) end
     local s, data = pcall(function() return game:HttpGet(url) end)
@@ -129,12 +195,8 @@ end
 ---------------------------------------------------
 -- KHỞI TẠO GIAO DIỆN & UI SCALE
 ---------------------------------------------------
-for _, v in ipairs(CoreGui:GetChildren()) do 
-    if v.Name:match("AltisGlobal_V") then v:Destroy() end 
-end
-
 local GUI = Instance.new("ScreenGui", gethui and gethui() or CoreGui)
-GUI.Name = "AltisGlobal_V32"
+GUI.Name = "AltisGlobal_V33"
 GUI.ResetOnSpawn = false
 pcall(function() syn.protect_gui(GUI) end)
 
@@ -146,7 +208,6 @@ MainFrame.BorderSizePixel = 0
 MainFrame.ZIndex = 1
 Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 12)
 
--- Hệ thống Scale UI
 local MainScale = Instance.new("UIScale", MainFrame)
 MainScale.Scale = 1.0
 
@@ -176,7 +237,7 @@ local Title = Instance.new("TextLabel", Topbar)
 Title.Size = UDim2.new(1, -150, 1, 0)
 Title.Position = UDim2.new(0, 15, 0, 0)
 Title.BackgroundTransparency = 1
-Title.Text = "🌐 Altis Hub - Global Chat V32.1"
+Title.Text = "🌐 Altis Hub - Global Chat V33"
 Title.TextColor3 = Color3.fromRGB(240, 240, 255)
 Title.Font = Enum.Font.GothamBold
 Title.TextSize = 15
@@ -221,16 +282,16 @@ ScaleBox.FocusLost:Connect(function(enterPressed)
 end)
 
 ---------------------------------------------------
--- V32.1: HỆ THỐNG DRAG MỚI (FIX MOBILE + SCALE)
+-- HỆ THỐNG DRAG MƯỢT MÀ (ĐÃ KHÔI PHỤC CHUẨN GỐC)
 ---------------------------------------------------
 local dragInput = nil
 local dragStart = nil
 local startPos = nil
-local dragSpeed = 0.12 -- Tốc độ độ trễ Tween
+local dragSpeed = 0.12 
 
 local function updateInput(input)
     local delta = input.Position - dragStart
-    local currentScale = MainScale.Scale -- Lấy Scale hiện tại của UI
+    local currentScale = MainScale.Scale 
     
     local targetPos = UDim2.new(
         startPos.X.Scale, 
@@ -244,7 +305,7 @@ end
 
 Topbar.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        if dragInput == nil then -- Chỉ khóa mục tiêu vào 1 ngón tay duy nhất
+        if dragInput == nil then 
             dragInput = input
             dragStart = input.Position
             startPos = MainFrame.Position
@@ -253,9 +314,7 @@ Topbar.InputBegan:Connect(function(input)
 end)
 
 UserInputService.InputEnded:Connect(function(input)
-    if input == dragInput then
-        dragInput = nil
-    end
+    if input == dragInput then dragInput = nil end
 end)
 
 UserInputService.InputChanged:Connect(function(input)
@@ -265,7 +324,7 @@ UserInputService.InputChanged:Connect(function(input)
 end)
 
 ---------------------------------------------------
--- HỆ THỐNG TAB & FIX SCROLLBAR CHO SCALE UI
+-- HỆ THỐNG TAB & FIX SCROLLBAR
 ---------------------------------------------------
 local TabBar = Instance.new("Frame", MainFrame)
 TabBar.Size = UDim2.new(1, -20, 0, 38)
@@ -401,7 +460,7 @@ MinBtn.MouseButton1Click:Connect(function()
 end)
 
 ---------------------------------------------------
--- RENDER TIN NHẮN & NÚT COPY (V32.1)
+-- RENDER TIN NHẮN & NÚT COPY
 ---------------------------------------------------
 local msgFrames = {}
 local seenMsgs = {}
@@ -554,23 +613,22 @@ local function renderMessage(msgData)
         TextLbl.ZIndex = 7
     end
 
-    -- HIỂN THỊ ẢNH (V32.1 - Sửa tràn viền & Crop)
     if imgLink and imgLink ~= "" then
         local ImgFrame = Instance.new("Frame", Frame)
         ImgFrame.SizeConstraint = Enum.SizeConstraint.RelativeXX
         ImgFrame.Size = UDim2.new(1, 0, 1, 0)
         ImgFrame.BackgroundTransparency = 1
         ImgFrame.ZIndex = 7
-        ImgFrame.ClipsDescendants = true -- Cắt phần bị lố ra khỏi khung
+        ImgFrame.ClipsDescendants = true 
         Instance.new("UICorner", ImgFrame).CornerRadius = UDim.new(0, 10)
         
         local ImgLabel = Instance.new("ImageLabel", ImgFrame)
-        ImgLabel.Size = UDim2.new(1, 0, 1, 0) -- Full 100%
+        ImgLabel.Size = UDim2.new(1, 0, 1, 0) 
         ImgLabel.Position = UDim2.new(0, 0, 0, 0)
         ImgLabel.BackgroundTransparency = 1
-        ImgLabel.ScaleType = Enum.ScaleType.Crop -- Crop đẹp nhất
+        ImgLabel.ScaleType = Enum.ScaleType.Crop 
         ImgLabel.ZIndex = 7
-        Instance.new("UICorner", ImgLabel).CornerRadius = UDim.new(0, 10) -- Khớp với viền UI
+        Instance.new("UICorner", ImgLabel).CornerRadius = UDim.new(0, 10) 
 
         task.spawn(function()
             local asset = getCacheAsset(imgLink)
@@ -720,12 +778,12 @@ MsgBox.FocusLost:Connect(function(enterPressed)
 end)
 
 ---------------------------------------------------
--- ĐỒNG BỘ DỮ LIỆU THỜI GIAN THỰC
+-- ĐỒNG BỘ DỮ LIỆU TÍCH HỢP CLEAN-UP LOOP
 ---------------------------------------------------
 local startTime = os.time()
 task.spawn(function()
     local tickCounter = 0
-    while true do
+    while getgenv().AltisV33_Loop do 
         pcall(function()
             local res = http_request({
                 Url = FIREBASE_URL .. PATH_CHAT .. '?orderBy="$key"&limitToLast=25',
@@ -786,4 +844,4 @@ task.spawn(function()
     end
 end)
 
-print("Altis Hub - Global Chat V32.1 đã khởi động thành công!")
+print("✅ Altis Hub - Global Chat V33 (Stable Build) đã khởi động thành công!")
