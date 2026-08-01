@@ -53,11 +53,11 @@ local function makeDraggable(topbar, frameToMove)
 end
 
 -----------------------------------------
--- GIAO DIỆN CHÍNH (MAIN UI - ĐÃ THU NHỎ)
+-- GIAO DIỆN CHÍNH (MAIN UI)
 -----------------------------------------
 local mainFrame = Instance.new("Frame")
-mainFrame.Size = UDim2.new(0, 220, 0, 144)
-mainFrame.Position = UDim2.new(0.5, -110, 0.5, -72)
+mainFrame.Size = UDim2.new(0, 240, 0, 230) -- Mở rộng chiều cao để chứa thêm UI tạo nhanh
+mainFrame.Position = UDim2.new(0.5, -120, 0.5, -115)
 mainFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 40)
 mainFrame.BorderSizePixel = 0
 mainFrame.Parent = screenGui
@@ -113,6 +113,7 @@ content.Position = UDim2.new(0, 0, 0, 28)
 content.BackgroundTransparency = 1
 content.Parent = mainFrame
 
+-- Phần tạo đơn
 local nameInput = Instance.new("TextBox")
 nameInput.Size = UDim2.new(1, -16, 0, 26)
 nameInput.Position = UDim2.new(0, 8, 0, 10)
@@ -136,8 +137,8 @@ keyInput.Parent = content
 Instance.new("UICorner", keyInput).CornerRadius = UDim.new(0, 4)
 
 local createBtn = Instance.new("TextButton")
-createBtn.Size = UDim2.new(1, -16, 0, 30)
-createBtn.Position = UDim2.new(0, 8, 0, 76)
+createBtn.Size = UDim2.new(1, -16, 0, 28)
+createBtn.Position = UDim2.new(0, 8, 0, 74)
 createBtn.BackgroundColor3 = Color3.fromRGB(80, 150, 255)
 createBtn.Text = "TẠO NÚT"
 createBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -146,40 +147,67 @@ createBtn.TextSize = 11
 createBtn.Parent = content
 Instance.new("UICorner", createBtn).CornerRadius = UDim.new(0, 4)
 
+-- Đường gạch ngang (Divider) cho phần tạo chuỗi nhanh
+local dividerLabel = Instance.new("TextLabel")
+dividerLabel.Size = UDim2.new(1, 0, 0, 14)
+dividerLabel.Position = UDim2.new(0, 0, 0, 110)
+dividerLabel.BackgroundTransparency = 1
+dividerLabel.Text = "--- HOẶC TẠO CHUỖI NHANH ---"
+dividerLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
+dividerLabel.Font = Enum.Font.Gotham
+dividerLabel.TextSize = 10
+dividerLabel.Parent = content
+
+local bulkInput = Instance.new("TextBox")
+bulkInput.Size = UDim2.new(1, -16, 0, 26)
+bulkInput.Position = UDim2.new(0, 8, 0, 130)
+bulkInput.BackgroundColor3 = Color3.fromRGB(45, 45, 50)
+bulkInput.PlaceholderText = "VD: Cb1 = E,R ; Cb2 = T,Y"
+bulkInput.TextColor3 = Color3.fromRGB(255, 255, 255)
+bulkInput.Font = Enum.Font.Gotham
+bulkInput.TextSize = 11
+bulkInput.ClearTextOnFocus = false
+bulkInput.Parent = content
+Instance.new("UICorner", bulkInput).CornerRadius = UDim.new(0, 4)
+
+local bulkBtn = Instance.new("TextButton")
+bulkBtn.Size = UDim2.new(1, -16, 0, 28)
+bulkBtn.Position = UDim2.new(0, 8, 0, 162)
+bulkBtn.BackgroundColor3 = Color3.fromRGB(100, 200, 100)
+bulkBtn.Text = "TẠO NHANH"
+bulkBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+bulkBtn.Font = Enum.Font.GothamBold
+bulkBtn.TextSize = 11
+bulkBtn.Parent = content
+Instance.new("UICorner", bulkBtn).CornerRadius = UDim.new(0, 4)
+
 -- Minimize Function
 local isMinimized = false
 minimizeBtn.MouseButton1Click:Connect(function()
     isMinimized = not isMinimized
     content.Visible = not isMinimized
     if isMinimized then
-        mainFrame.Size = UDim2.new(0, 220, 0, 28)
+        mainFrame.Size = UDim2.new(0, 240, 0, 28)
     else
-        mainFrame.Size = UDim2.new(0, 220, 0, 144)
+        mainFrame.Size = UDim2.new(0, 240, 0, 230)
     end
 end)
 
 -----------------------------------------
--- CHỨC NĂNG TẠO NÚT ẢO (NHỎ GỌN, GIỮ PHÍM & KÉO THẢ)
+-- HÀM KHỞI TẠO NÚT ẢO (TÁI SỬ DỤNG)
 -----------------------------------------
 local buttonContainer = Instance.new("Folder")
 buttonContainer.Name = "VirtualButtons"
 buttonContainer.Parent = screenGui
 
-createBtn.MouseButton1Click:Connect(function()
-    local btnName = nameInput.Text
-    local keysStr = keyInput.Text
-    
-    if btnName == "" or keysStr == "" then return end
-    
-    -- Khung chứa nút ảo (Thu nhỏ còn 50x50 thay vì 80x80)
+local function createVirtualButton(btnName, keysStr, spawnPos)
     local virtualFrame = Instance.new("Frame")
     virtualFrame.Size = UDim2.new(0, 50, 0, 50)
-    virtualFrame.Position = UDim2.new(0, 50, 0, 50)
+    virtualFrame.Position = spawnPos
     virtualFrame.BackgroundColor3 = Color3.fromRGB(50, 50, 55)
     virtualFrame.Parent = buttonContainer
     Instance.new("UICorner", virtualFrame).CornerRadius = UDim.new(0, 6)
     
-    -- Nút bấm ảo nhỏ gọn
     local virtualBtn = Instance.new("TextButton")
     virtualBtn.Size = UDim2.new(1, 0, 1, 0)
     virtualBtn.BackgroundTransparency = 1
@@ -190,7 +218,6 @@ createBtn.MouseButton1Click:Connect(function()
     virtualBtn.TextWrapped = true
     virtualBtn.Parent = virtualFrame
     
-    -- Nút X để xóa (Thu nhỏ lại thành 16x16)
     local deleteBtn = Instance.new("TextButton")
     deleteBtn.Size = UDim2.new(0, 16, 0, 16)
     deleteBtn.Position = UDim2.new(1, -16, 0, 0)
@@ -206,23 +233,21 @@ createBtn.MouseButton1Click:Connect(function()
         virtualFrame:Destroy()
     end)
     
-    -- Xử lý Kéo thả + Giữ phím trên virtualBtn
+    -- Draggable & Hold Key Logic
     local dragging = false
-    local dragInput, dragStart, startPos
+    local dragInput, dragStart, startPosDragging
     local keysToPress = string.split(keysStr, ",")
 
     virtualBtn.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
             dragging = true
             dragStart = input.Position
-            startPos = virtualFrame.Position
+            startPosDragging = virtualFrame.Position
             
-            -- Gửi lệnh GIỮ PHÍM (Key Down)
+            -- Key Down
             for _, keyRaw in ipairs(keysToPress) do
                 local cleanKey = string.upper(string.match(keyRaw, "^%s*(.-)%s*$"))
-                local successCode, keyCode = pcall(function()
-                    return Enum.KeyCode[cleanKey]
-                end)
+                local successCode, keyCode = pcall(function() return Enum.KeyCode[cleanKey] end)
                 if successCode and keyCode then
                     VirtualInputManager:SendKeyEvent(true, keyCode, false, game)
                 end
@@ -232,12 +257,10 @@ createBtn.MouseButton1Click:Connect(function()
                 if input.UserInputState == Enum.UserInputState.End then
                     if dragging then
                         dragging = false
-                        -- Gửi lệnh NHẢ PHÍM (Key Up) khi thả tay ra
+                        -- Key Up
                         for _, keyRaw in ipairs(keysToPress) do
                             local cleanKey = string.upper(string.match(keyRaw, "^%s*(.-)%s*$"))
-                            local successCode, keyCode = pcall(function()
-                                return Enum.KeyCode[cleanKey]
-                            end)
+                            local successCode, keyCode = pcall(function() return Enum.KeyCode[cleanKey] end)
                             if successCode and keyCode then
                                 VirtualInputManager:SendKeyEvent(false, keyCode, false, game)
                             end
@@ -258,14 +281,58 @@ createBtn.MouseButton1Click:Connect(function()
         if input == dragInput and dragging then
             local delta = input.Position - dragStart
             virtualFrame.Position = UDim2.new(
-                startPos.X.Scale, startPos.X.Offset + delta.X, 
-                startPos.Y.Scale, startPos.Y.Offset + delta.Y
+                startPosDragging.X.Scale, startPosDragging.X.Offset + delta.X, 
+                startPosDragging.Y.Scale, startPosDragging.Y.Offset + delta.Y
             )
         end
     end)
+end
+
+-----------------------------------------
+-- KẾT NỐI SỰ KIỆN (EVENTS)
+-----------------------------------------
+
+-- 1. Sự kiện nút Tạo Đơn Lẻ
+createBtn.MouseButton1Click:Connect(function()
+    local bName = nameInput.Text
+    local bKeys = keyInput.Text
+    if bName == "" or bKeys == "" then return end
     
-    -- Reset Textbox
+    -- Tạo nút ở vị trí mặc định (X=50, Y=50)
+    createVirtualButton(bName, bKeys, UDim2.new(0, 50, 0, 50))
     nameInput.Text = ""
     keyInput.Text = ""
 end)
 
+-- 2. Sự kiện nút Tạo Chuỗi (Bulk)
+bulkBtn.MouseButton1Click:Connect(function()
+    local rawText = bulkInput.Text
+    if rawText == "" then return end
+    
+    -- Tách các bộ nút bởi dấu chấm phẩy ";"
+    local configs = string.split(rawText, ";")
+    local validCount = 0
+    
+    for _, configStr in ipairs(configs) do
+        -- Tách tên và phím bởi dấu bằng "="
+        if string.find(configStr, "=") then
+            local parts = string.split(configStr, "=")
+            if #parts >= 2 then
+                -- string.match để xóa sạch khoảng trắng dư thừa
+                local bName = string.match(parts[1], "^%s*(.-)%s*$")
+                local bKeys = string.match(parts[2], "^%s*(.-)%s*$")
+                
+                if bName and bKeys and bName ~= "" and bKeys ~= "" then
+                    -- Tính toán vị trí xếp ngang (mỗi nút cách nhau 60 pixel: kích thước 50 + khoảng hở 10)
+                    local startX = 50 + (validCount * 60)
+                    local startY = 120 -- Hiển thị tụt xuống một chút so với tạo đơn
+                    
+                    createVirtualButton(bName, bKeys, UDim2.new(0, startX, 0, startY))
+                    validCount = validCount + 1
+                end
+            end
+        end
+    end
+    
+    bulkInput.Text = ""
+end)
