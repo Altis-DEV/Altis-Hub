@@ -1,0 +1,236 @@
+-- Tạo ScreenGui bảo vệ để tránh bị game phát hiện
+local CoreGui = game:GetService("CoreGui")
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+
+local targetParent
+local success = pcall(function()
+    targetParent = CoreGui
+    local _ = targetParent.Name
+end)
+if not success or not targetParent then
+    targetParent = Players.LocalPlayer:WaitForChild("PlayerGui")
+end
+
+if targetParent:FindFirstChild("MiniExecutorApiChecker") then
+    targetParent:FindFirstChild("MiniExecutorApiChecker"):Destroy()
+end
+
+-- Giao diện chính (Nhỏ gọn hơn)
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "MiniExecutorApiChecker"
+ScreenGui.Parent = targetParent
+ScreenGui.ResetOnSpawn = false
+
+local MainFrame = Instance.new("Frame")
+MainFrame.Name = "MainFrame"
+MainFrame.Size = UDim2.new(0, 320, 0, 420) -- Size nhỏ gọn hơn
+MainFrame.Position = UDim2.new(0.5, -160, 0.5, -210)
+MainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
+MainFrame.BorderSizePixel = 0
+MainFrame.Parent = ScreenGui
+
+local MainUICorner = Instance.new("UICorner")
+MainUICorner.CornerRadius = UDim.new(0, 6)
+MainUICorner.Parent = MainFrame
+
+-- Topbar
+local Topbar = Instance.new("Frame")
+Topbar.Name = "Topbar"
+Topbar.Size = UDim2.new(1, 0, 0, 30) -- Thu nhỏ chiều cao topbar
+Topbar.BackgroundColor3 = Color3.fromRGB(35, 35, 40)
+Topbar.BorderSizePixel = 0
+Topbar.Parent = MainFrame
+
+local TopbarUICorner = Instance.new("UICorner")
+TopbarUICorner.CornerRadius = UDim.new(0, 6)
+TopbarUICorner.Parent = Topbar
+
+local TopbarBottomCover = Instance.new("Frame")
+TopbarBottomCover.Size = UDim2.new(1, 0, 0, 6)
+TopbarBottomCover.Position = UDim2.new(0, 0, 1, -6)
+TopbarBottomCover.BackgroundColor3 = Color3.fromRGB(35, 35, 40)
+TopbarBottomCover.BorderSizePixel = 0
+TopbarBottomCover.Parent = Topbar
+
+local Title = Instance.new("TextLabel")
+Title.Size = UDim2.new(1, -40, 1, 0)
+Title.Position = UDim2.new(0, 10, 0, 0)
+Title.BackgroundTransparency = 1
+Title.Text = "API Checker (Compact)"
+Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+Title.Font = Enum.Font.GothamBold
+Title.TextSize = 13
+Title.TextXAlignment = Enum.TextXAlignment.Left
+Title.Parent = Topbar
+
+local CloseBtn = Instance.new("TextButton")
+CloseBtn.Size = UDim2.new(0, 30, 0, 30)
+CloseBtn.Position = UDim2.new(1, -30, 0, 0)
+CloseBtn.BackgroundTransparency = 1
+CloseBtn.Text = "X"
+CloseBtn.TextColor3 = Color3.fromRGB(255, 80, 80)
+CloseBtn.Font = Enum.Font.GothamBold
+CloseBtn.TextSize = 14
+CloseBtn.Parent = Topbar
+
+CloseBtn.MouseButton1Click:Connect(function()
+    ScreenGui:Destroy()
+end)
+
+-- Kéo thả (Draggable)
+local dragging, dragInput, dragStart, startPos
+Topbar.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = true
+        dragStart = input.Position
+        startPos = MainFrame.Position
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then dragging = false end
+        end)
+    end
+end)
+Topbar.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+        dragInput = input
+    end
+end)
+UserInputService.InputChanged:Connect(function(input)
+    if input == dragInput and dragging then
+        local delta = input.Position - dragStart
+        MainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    end
+end)
+
+-- Legend (Chú thích)
+local Legend = Instance.new("TextLabel")
+Legend.Size = UDim2.new(1, 0, 0, 25)
+Legend.Position = UDim2.new(0, 0, 0, 32)
+Legend.BackgroundTransparency = 1
+Legend.Text = "✅️-Pass | ⛔️-Fail | ⏺️-No Test | ⚠️-Missing"
+Legend.TextColor3 = Color3.fromRGB(180, 180, 180)
+Legend.Font = Enum.Font.GothamSemibold
+Legend.TextSize = 11
+Legend.Parent = MainFrame
+
+-- Scrollbar Frame
+local ScrollFrame = Instance.new("ScrollingFrame")
+ScrollFrame.Size = UDim2.new(1, -16, 1, -65)
+ScrollFrame.Position = UDim2.new(0, 8, 0, 58)
+ScrollFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+ScrollFrame.BorderSizePixel = 0
+ScrollFrame.ScrollBarThickness = 4
+ScrollFrame.ScrollBarImageColor3 = Color3.fromRGB(80, 80, 80)
+ScrollFrame.Parent = MainFrame
+
+local ScrollUICorner = Instance.new("UICorner")
+ScrollUICorner.CornerRadius = UDim.new(0, 4)
+ScrollUICorner.Parent = ScrollFrame
+
+local UIListLayout = Instance.new("UIListLayout")
+UIListLayout.Parent = ScrollFrame
+UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+UIListLayout.Padding = UDim.new(0, 2) -- Dãn cách nhỏ lại
+
+local UIPadding = Instance.new("UIPadding")
+UIPadding.PaddingTop = UDim.new(0, 5)
+UIPadding.PaddingLeft = UDim.new(0, 8)
+UIPadding.PaddingBottom = UDim.new(0, 5)
+UIPadding.Parent = ScrollFrame
+
+-- DANH SÁCH HƠN 100 API ĐƯỢC CẬP NHẬT
+local apiList = {
+    -- Môi trường / Định danh
+    "getgenv", "getrenv", "getreg", "identifyexecutor", "getexecutorname", "getthreadidentity", "setthreadidentity", "getidentity", "setidentity", "getthreadcontext", "setthreadcontext",
+    
+    -- Script, Object & Rác (GC)
+    "getgc", "getinstances", "getnilinstances", "getscripts", "getloadedmodules", "gethui", "cloneref", "compareinstances", "getrunningscripts", "fireclickdetector", "firetouchinterest", "fireproximityprompt",
+
+    -- Mạng & Web (ĐÃ SỬA game:HttpGet)
+    "request", "http_request", "http.request", "game:HttpGet", "game:HttpPost", "game:GetObjects", "isnetworkowner",
+
+    -- Quản lý File & Asset
+    "readfile", "writefile", "appendfile", "loadfile", "listfiles", "isfile", "isfolder", "makefolder", "delfolder", "delfile", "getcustomasset", "getsynasset",
+
+    -- Metatable
+    "getrawmetatable", "setrawmetatable", "setreadonly", "isreadonly", "hookmetamethod", "getnamecallmethod", "setnamecallmethod",
+
+    -- Hàm & Closures
+    "hookfunction", "replaceclosure", "restorefunction", "clonefunction", "newcclosure", "iscclosure", "islclosure", "checkcaller", "getcallingscript", "getscriptclosure", "getscripthash",
+
+    -- Thao tác chuột / phím
+    "keypress", "keyrelease", "mouse1click", "mouse1press", "mouse1release", "mouse2click", "mouse2press", "mouse2release", "mousescroll", "mousemoverel",
+
+    -- Mã hóa / Hash
+    "crypt.encrypt", "crypt.decrypt", "crypt.hash", "crypt.base64encode", "crypt.base64decode", "crypt.generatebytes", "crypt.generatekey", "base64.encode", "base64.decode",
+
+    -- Debug
+    "debug.getinfo", "debug.getupvalue", "debug.setupvalue", "debug.getconstant", "debug.setconstant", "debug.getregistry", "debug.getmetatable", "debug.setmetatable",
+
+    -- Hỗn hợp
+    "getconnections", "firesignal", "setclipboard", "toclipboard", "setfflag", "queue_on_teleport", "loadstring", "setfpscap", "gethiddenproperty", "sethiddenproperty", "setsimulationradius", "messagebox"
+}
+
+-- Hàm kiểm tra API 
+local function checkAPI(apiName)
+    local status = "⛔️"
+    
+    local success, result = pcall(function()
+        -- 1. Xử lý hàm của game (Ví dụ: game:HttpGet)
+        if string.find(apiName, "^game:") then
+            local method = string.sub(apiName, 6)
+            -- Lấy hàm từ biến game
+            return game[method] ~= nil
+        end
+        
+        -- 2. Xử lý bảng/hàm thông thường (Ví dụ: crypt.hash, getcustomasset)
+        local parts = string.split(apiName, ".")
+        local env = typeof(getgenv) == "function" and getgenv() or getfenv(0)
+        
+        local current = env
+        for i, part in ipairs(parts) do
+            if current[part] ~= nil then
+                current = current[part]
+            else
+                -- Fallback sang các thư viện built-in
+                local fbEnv = getfenv(0)
+                if fbEnv[parts[1]] and type(fbEnv[parts[1]]) == "table" and fbEnv[parts[1]][part] ~= nil then
+                    current = fbEnv[parts[1]][part]
+                else
+                    return false
+                end
+            end
+        end
+        return current ~= nil
+    end)
+
+    if success and result == true then
+        status = "✅️"
+    end
+    return status
+end
+
+-- Render UI
+for i, apiName in ipairs(apiList) do
+    local Item = Instance.new("TextLabel")
+    Item.Name = "API_" .. tostring(i)
+    Item.Size = UDim2.new(1, -10, 0, 18) -- Chiều cao dòng nhỏ gọn
+    Item.BackgroundTransparency = 1
+    
+    local emoji = checkAPI(apiName)
+    
+    Item.Text = tostring(i) .. ". " .. apiName .. ": " .. emoji
+    Item.TextColor3 = Color3.fromRGB(220, 220, 220)
+    Item.Font = Enum.Font.Code
+    Item.TextSize = 12 -- Font size nhỏ gọn
+    Item.TextXAlignment = Enum.TextXAlignment.Left
+    Item.LayoutOrder = i
+    Item.Parent = ScrollFrame
+end
+
+-- Cập nhật Scroll Canvas
+ScrollFrame.CanvasSize = UDim2.new(0, 0, 0, UIListLayout.AbsoluteContentSize.Y + 10)
+UIListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+    ScrollFrame.CanvasSize = UDim2.new(0, 0, 0, UIListLayout.AbsoluteContentSize.Y + 10)
+end)
+
