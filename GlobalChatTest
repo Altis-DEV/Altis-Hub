@@ -626,7 +626,7 @@ local function renderMessage(msgData)
         ImgLabel.Size = UDim2.new(1, 0, 1, 0) 
         ImgLabel.Position = UDim2.new(0, 0, 0, 0)
         ImgLabel.BackgroundTransparency = 1
-        ImgLabel.ScaleType = Enum.ScaleType.Crop 
+        ImgLabel.ScaleType = Enum.ScaleType.Fit
         ImgLabel.ZIndex = 7
         Instance.new("UICorner", ImgLabel).CornerRadius = UDim.new(0, 10) 
 
