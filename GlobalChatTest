@@ -89,7 +89,7 @@ local function runIntroChecker()
     VersionTag.Size = UDim2.new(0, 80, 0, 18)
     VersionTag.Position = UDim2.new(1, -90, 0, 18)
     VersionTag.BackgroundColor3 = Color3.fromRGB(40, 80, 160)
-    VersionTag.Text = "v34.0"
+    VersionTag.Text = "v34.3"
     VersionTag.Font = Enum.Font.GothamBold
     VersionTag.TextSize = 11
     VersionTag.TextColor3 = Color3.fromRGB(160, 200, 255)
