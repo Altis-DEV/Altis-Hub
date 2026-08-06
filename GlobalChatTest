@@ -1,0 +1,1759 @@
+-- ===================================================
+-- ALTIS HUB - GLOBAL CHAT V34.3 (ULTIMATE MODERN & SCALE UI)
+-- [Bản Full Source - Audio/Video/Multi-Element/Window Resize/Clock+FPS/UIScale]
+-- ===================================================
+
+local CoreGui = game:GetService("CoreGui")
+local Players = game:GetService("Players")
+local HttpService = game:GetService("HttpService")
+local UserInputService = game:GetService("UserInputService")
+local StarterGui = game:GetService("StarterGui")
+local TweenService = game:GetService("TweenService")
+local LocalPlayer = Players.LocalPlayer
+
+---------------------------------------------------
+-- [1] HỆ THỐNG CLEAN-UP ĐỘC QUYỀN (CHỐNG LAG)
+---------------------------------------------------
+if getgenv().AltisV343_Loop then
+    getgenv().AltisV343_Loop = false
+    task.wait(0.5)
+end
+getgenv().AltisV343_Loop = true
+
+for _, v in ipairs(CoreGui:GetChildren()) do
+    if v.Name == "AltisIntro_V34" or v.Name == "AltisGlobal_V34"
+    or v.Name == "AltisIntro_V343" or v.Name == "AltisGlobal_V343"
+    or v.Name == "AltisIntro_V33" or v.Name == "AltisGlobal_V33" then
+        v:Destroy()
+    end
+end
+
+---------------------------------------------------
+-- [2] INTRO UI V34 – CẢI TIẾN ĐẦY ĐỦ
+---------------------------------------------------
+local function runIntroChecker()
+    local introParent = (gethui and gethui()) or CoreGui
+    local IntroGui = Instance.new("ScreenGui", introParent)
+    IntroGui.Name = "AltisIntro_V343"
+    IntroGui.ResetOnSpawn = false
+    IntroGui.DisplayOrder = 9999
+
+    -- Nền mờ toàn màn hình
+    local Backdrop = Instance.new("Frame", IntroGui)
+    Backdrop.Size = UDim2.new(1, 0, 1, 0)
+    Backdrop.BackgroundColor3 = Color3.fromRGB(8, 8, 14)
+    Backdrop.BackgroundTransparency = 0.35
+    Backdrop.BorderSizePixel = 0
+    Backdrop.ZIndex = 1
+
+    -- Card chính
+    local Card = Instance.new("Frame", IntroGui)
+    Card.Size = UDim2.new(0, 420, 0, 260)
+    Card.Position = UDim2.new(0.5, -210, 0.5, -130)
+    Card.BackgroundColor3 = Color3.fromRGB(16, 16, 24)
+    Card.BorderSizePixel = 0
+    Card.ZIndex = 2
+    Instance.new("UICorner", Card).CornerRadius = UDim.new(0, 14)
+
+    local CardStroke = Instance.new("UIStroke", Card)
+    CardStroke.Color = Color3.fromRGB(60, 110, 220)
+    CardStroke.Thickness = 1.8
+
+    -- Header gradient strip
+    local Strip = Instance.new("Frame", Card)
+    Strip.Size = UDim2.new(1, 0, 0, 5)
+    Strip.BackgroundColor3 = Color3.fromRGB(60, 110, 220)
+    Strip.BorderSizePixel = 0
+    Strip.ZIndex = 3
+    Instance.new("UICorner", Strip).CornerRadius = UDim.new(0, 14)
+    local StripCover = Instance.new("Frame", Strip)
+    StripCover.Size = UDim2.new(1, 0, 0.5, 0)
+    StripCover.Position = UDim2.new(0, 0, 0.5, 0)
+    StripCover.BackgroundColor3 = Color3.fromRGB(60, 110, 220)
+    StripCover.BorderSizePixel = 0
+    StripCover.ZIndex = 3
+
+    -- Logo / title
+    local LogoLabel = Instance.new("TextLabel", Card)
+    LogoLabel.Size = UDim2.new(1, -30, 0, 36)
+    LogoLabel.Position = UDim2.new(0, 15, 0, 14)
+    LogoLabel.BackgroundTransparency = 1
+    LogoLabel.Text = "🌐  ALTIS HUB  —  Global Chat V34.3"
+    LogoLabel.Font = Enum.Font.GothamBold
+    LogoLabel.TextSize = 16
+    LogoLabel.TextColor3 = Color3.fromRGB(200, 220, 255)
+    LogoLabel.TextXAlignment = Enum.TextXAlignment.Left
+    LogoLabel.ZIndex = 3
+
+    local VersionTag = Instance.new("TextLabel", Card)
+    VersionTag.Size = UDim2.new(0, 80, 0, 18)
+    VersionTag.Position = UDim2.new(1, -90, 0, 18)
+    VersionTag.BackgroundColor3 = Color3.fromRGB(40, 80, 160)
+    VersionTag.Text = "v34.0"
+    VersionTag.Font = Enum.Font.GothamBold
+    VersionTag.TextSize = 11
+    VersionTag.TextColor3 = Color3.fromRGB(160, 200, 255)
+    VersionTag.ZIndex = 3
+    Instance.new("UICorner", VersionTag).CornerRadius = UDim.new(0, 6)
+
+    -- Divider
+    local Div = Instance.new("Frame", Card)
+    Div.Size = UDim2.new(1, -30, 0, 1)
+    Div.Position = UDim2.new(0, 15, 0, 55)
+    Div.BackgroundColor3 = Color3.fromRGB(45, 45, 60)
+    Div.BorderSizePixel = 0
+    Div.ZIndex = 3
+
+    -- Steps container
+    local StepsFrame = Instance.new("Frame", Card)
+    StepsFrame.Size = UDim2.new(1, -30, 0, 130)
+    StepsFrame.Position = UDim2.new(0, 15, 0, 65)
+    StepsFrame.BackgroundTransparency = 1
+    StepsFrame.ZIndex = 3
+    local StepsLayout = Instance.new("UIListLayout", StepsFrame)
+    StepsLayout.Padding = UDim.new(0, 6)
+
+    local stepDefs = {
+        { icon = "⚡", label = "HTTP Request Engine" },
+        { icon = "💾", label = "File System & Asset Cache" },
+        { icon = "🛡️", label = "UI Protection Layer" },
+        { icon = "🎵", label = "Audio / Video Support" },
+        { icon = "📡", label = "Firebase Sync Engine" },
+    }
+
+    local stepLabels = {}
+    local stepIcons = {}
+
+    for i, def in ipairs(stepDefs) do
+        local row = Instance.new("Frame", StepsFrame)
+        row.Size = UDim2.new(1, 0, 0, 22)
+        row.BackgroundTransparency = 1
+        row.ZIndex = 3
+
+        local ico = Instance.new("TextLabel", row)
+        ico.Size = UDim2.new(0, 22, 1, 0)
+        ico.BackgroundTransparency = 1
+        ico.Text = def.icon
+        ico.Font = Enum.Font.Gotham
+        ico.TextSize = 14
+        ico.ZIndex = 4
+
+        local lbl = Instance.new("TextLabel", row)
+        lbl.Size = UDim2.new(0, 260, 1, 0)
+        lbl.Position = UDim2.new(0, 28, 0, 0)
+        lbl.BackgroundTransparency = 1
+        lbl.Text = def.label
+        lbl.Font = Enum.Font.Gotham
+        lbl.TextSize = 13
+        lbl.TextColor3 = Color3.fromRGB(150, 150, 170)
+        lbl.TextXAlignment = Enum.TextXAlignment.Left
+        lbl.ZIndex = 4
+
+        local statusLbl = Instance.new("TextLabel", row)
+        statusLbl.Size = UDim2.new(0, 80, 1, 0)
+        statusLbl.Position = UDim2.new(1, -85, 0, 0)
+        statusLbl.BackgroundTransparency = 1
+        statusLbl.Text = "—"
+        statusLbl.Font = Enum.Font.GothamBold
+        statusLbl.TextSize = 12
+        statusLbl.TextColor3 = Color3.fromRGB(100, 100, 120)
+        statusLbl.TextXAlignment = Enum.TextXAlignment.Right
+        statusLbl.ZIndex = 4
+
+        stepLabels[i] = statusLbl
+        stepIcons[i] = lbl
+    end
+
+    -- Status bar bottom
+    local StatusBar = Instance.new("Frame", Card)
+    StatusBar.Size = UDim2.new(1, -30, 0, 32)
+    StatusBar.Position = UDim2.new(0, 15, 1, -42)
+    StatusBar.BackgroundColor3 = Color3.fromRGB(22, 22, 32)
+    StatusBar.BorderSizePixel = 0
+    StatusBar.ZIndex = 3
+    Instance.new("UICorner", StatusBar).CornerRadius = UDim.new(0, 8)
+
+    local StatusText = Instance.new("TextLabel", StatusBar)
+    StatusText.Size = UDim2.new(1, -16, 1, 0)
+    StatusText.Position = UDim2.new(0, 8, 0, 0)
+    StatusText.BackgroundTransparency = 1
+    StatusText.Text = "⏳ Đang khởi tạo..."
+    StatusText.Font = Enum.Font.Gotham
+    StatusText.TextSize = 12
+    StatusText.TextColor3 = Color3.fromRGB(180, 180, 200)
+    StatusText.TextXAlignment = Enum.TextXAlignment.Left
+    StatusText.ZIndex = 4
+
+    -- progress bar
+    local ProgBg = Instance.new("Frame", Card)
+    ProgBg.Size = UDim2.new(1, -30, 0, 4)
+    ProgBg.Position = UDim2.new(0, 15, 1, -8)
+    ProgBg.BackgroundColor3 = Color3.fromRGB(30, 30, 45)
+    ProgBg.BorderSizePixel = 0
+    ProgBg.ZIndex = 3
+    Instance.new("UICorner", ProgBg).CornerRadius = UDim.new(1, 0)
+
+    local ProgFill = Instance.new("Frame", ProgBg)
+    ProgFill.Size = UDim2.new(0, 0, 1, 0)
+    ProgFill.BackgroundColor3 = Color3.fromRGB(60, 130, 230)
+    ProgFill.BorderSizePixel = 0
+    ProgFill.ZIndex = 4
+    Instance.new("UICorner", ProgFill).CornerRadius = UDim.new(1, 0)
+
+    local function setStep(idx, ok, msg)
+        local lbl = stepLabels[idx]
+        if ok == "pending" then
+            lbl.Text = "⏳"
+            lbl.TextColor3 = Color3.fromRGB(240, 200, 60)
+            stepIcons[idx].TextColor3 = Color3.fromRGB(200, 200, 200)
+        elseif ok == true then
+            lbl.Text = "✅ OK"
+            lbl.TextColor3 = Color3.fromRGB(80, 220, 120)
+            stepIcons[idx].TextColor3 = Color3.fromRGB(200, 200, 200)
+        elseif ok == "warn" then
+            lbl.Text = "⚠️"
+            lbl.TextColor3 = Color3.fromRGB(255, 180, 50)
+            stepIcons[idx].TextColor3 = Color3.fromRGB(255, 180, 50)
+        else
+            lbl.Text = "❌ Lỗi"
+            lbl.TextColor3 = Color3.fromRGB(255, 80, 80)
+            stepIcons[idx].TextColor3 = Color3.fromRGB(255, 80, 80)
+        end
+        if msg then StatusText.Text = msg end
+        TweenService:Create(ProgFill, TweenInfo.new(0.3), {
+            Size = UDim2.new(idx / #stepDefs, 0, 1, 0)
+        }):Play()
+        task.wait(0.5)
+    end
+
+    -- STEP 1: HTTP
+    setStep(1, "pending", "⏳ Kiểm tra HTTP Request Engine...")
+    local check_request = (syn and syn.request) or (http and http.request) or request
+    if not check_request then
+        setStep(1, false, "❌ Executor không hỗ trợ HTTP Request!")
+        task.wait(2)
+        IntroGui:Destroy()
+        return nil
+    end
+    setStep(1, true, "✅ HTTP Engine sẵn sàng.")
+
+    -- STEP 2: File System
+    setStep(2, "pending", "⏳ Kiểm tra File System & Cache...")
+    local fs_ok = (writefile and isfile and getcustomasset and makefolder)
+    if fs_ok then
+        setStep(2, true, "✅ File System đầy đủ.")
+    else
+        setStep(2, "warn", "⚠️ File System yếu — ảnh/audio/video bị giới hạn.")
+    end
+
+    -- STEP 3: UI Protection
+    setStep(3, "pending", "⏳ Kiểm tra UI Protection Layer...")
+    local ui_protect_ok = (syn and syn.protect_gui) or gethui
+    if ui_protect_ok then
+        setStep(3, true, "✅ UI Protection hoạt động.")
+    else
+        setStep(3, "warn", "⚠️ Thiếu UI Protection — giao diện dễ bị xóa.")
+    end
+
+    -- STEP 4: Audio/Video
+    setStep(4, "pending", "⏳ Kiểm tra Audio/Video Engine...")
+    local av_ok = (getcustomasset ~= nil)
+    if av_ok then
+        setStep(4, true, "✅ Audio/Video Engine sẵn sàng.")
+    else
+        setStep(4, "warn", "⚠️ getcustomasset thiếu — audio/video bị giới hạn.")
+    end
+
+    -- STEP 5: Firebase ping
+    setStep(5, "pending", "⏳ Kết nối Firebase Sync...")
+    local fbOk = false
+    pcall(function()
+        local r = check_request({ Url = "https://myfirstproject-e1354-default-rtdb.firebaseio.com/.json?shallow=true", Method = "GET" })
+        fbOk = r and r.StatusCode == 200
+    end)
+    if fbOk then
+        setStep(5, true, "✅ Firebase đã kết nối.")
+    else
+        setStep(5, "warn", "⚠️ Firebase không phản hồi — sẽ thử lại sau.")
+    end
+
+    -- Kiểm tra có cần hỏi không
+    if not fs_ok or not ui_protect_ok then
+        StatusText.Text = "⚠️ Executor yếu. Tiếp tục bản giới hạn?"
+        CardStroke.Color = Color3.fromRGB(255, 180, 50)
+
+        local choiceEvent = Instance.new("BindableEvent")
+
+        local BtnRow = Instance.new("Frame", Card)
+        BtnRow.Size = UDim2.new(1, -30, 0, 34)
+        BtnRow.Position = UDim2.new(0, 15, 1, -50)
+        BtnRow.BackgroundTransparency = 1
+        BtnRow.ZIndex = 5
+        local BtnLayout = Instance.new("UIListLayout", BtnRow)
+        BtnLayout.FillDirection = Enum.FillDirection.Horizontal
+        BtnLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+        BtnLayout.Padding = UDim.new(0, 12)
+
+        local YesBtn = Instance.new("TextButton", BtnRow)
+        YesBtn.Size = UDim2.new(0, 130, 0, 30)
+        YesBtn.BackgroundColor3 = Color3.fromRGB(50, 160, 90)
+        YesBtn.Text = "Có, Tiếp Tục"
+        YesBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+        YesBtn.Font = Enum.Font.GothamBold
+        YesBtn.TextSize = 13
+        YesBtn.ZIndex = 6
+        Instance.new("UICorner", YesBtn).CornerRadius = UDim.new(0, 8)
+
+        local NoBtn = Instance.new("TextButton", BtnRow)
+        NoBtn.Size = UDim2.new(0, 130, 0, 30)
+        NoBtn.BackgroundColor3 = Color3.fromRGB(200, 60, 60)
+        NoBtn.Text = "Thoát"
+        NoBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+        NoBtn.Font = Enum.Font.GothamBold
+        NoBtn.TextSize = 13
+        NoBtn.ZIndex = 6
+        Instance.new("UICorner", NoBtn).CornerRadius = UDim.new(0, 8)
+
+        YesBtn.MouseButton1Click:Connect(function() choiceEvent:Fire(true) end)
+        NoBtn.MouseButton1Click:Connect(function() choiceEvent:Fire(false) end)
+
+        local proceed = choiceEvent.Event:Wait()
+        choiceEvent:Destroy()
+        BtnRow:Destroy()
+
+        if not proceed then
+            IntroGui:Destroy()
+            return nil
+        end
+    end
+
+    StatusText.Text = "✅ Hoàn tất — đang tải V34..."
+    CardStroke.Color = Color3.fromRGB(60, 220, 120)
+    task.wait(0.8)
+    IntroGui:Destroy()
+    return check_request
+end
+
+local http_request = runIntroChecker()
+if not http_request then return end
+
+---------------------------------------------------
+-- CẤU HÌNH FIREBASE & WEBHOOK
+---------------------------------------------------
+local FIREBASE_URL = "https://myfirstproject-e1354-default-rtdb.firebaseio.com/"
+local PATH_CHAT = "globalchat_v32/chat.json"
+local PATH_ONLINE = "globalchat_v32/online/"
+
+local WH_PART1 = "https://discord.com/api/webhooks/1530461171977818255/"
+local WH_PART2 = "9D3YDtO2N28AqX_kM5G4q4abt"
+local WH_PART3 = "Fxaoc1jddlzCJe4yK7BYU7tZtBumRjsf128D-fgw5R_"
+local DISCORD_WEBHOOK_URL = WH_PART1 .. WH_PART2 .. WH_PART3
+
+---------------------------------------------------
+-- HÀM GỬI LOG LÊN DISCORD
+---------------------------------------------------
+local function sendLogToDiscord(elements)
+    if not DISCORD_WEBHOOK_URL or DISCORD_WEBHOOK_URL == "" then return end
+    task.spawn(function()
+        local desc = "## Người Gửi:\n`" .. LocalPlayer.DisplayName .. "(@" .. LocalPlayer.Name .. ")`\n\n"
+        for _, el in ipairs(elements) do
+            if el.type == "msg" and el.value ~= "" then
+                desc = desc .. "## Nội Dung:\n`" .. el.value .. "`\n\n"
+            elseif el.type == "image" then
+                desc = desc .. "## Hình Ảnh:\n`" .. el.value .. "`\n\n"
+            elseif el.type == "audio" then
+                desc = desc .. "## Audio:\n`" .. el.value .. "`\n\n"
+            elseif el.type == "video" then
+                desc = desc .. "## Video:\n`" .. el.value .. "`\n\n"
+            end
+        end
+        desc = desc .. "## Thời Gian:\n`" .. os.date("%H:%M:%S - %d/%m/%Y") .. "`"
+        local avatarUrl = "https://www.roblox.com/headshot-thumbnail/image?userId=" .. LocalPlayer.UserId .. "&width=150&height=150&format=png"
+        local payload = {
+            ["username"] = LocalPlayer.DisplayName .. " (@" .. LocalPlayer.Name .. ")",
+            ["avatar_url"] = avatarUrl,
+            ["embeds"] = {{
+                ["title"] = "💬 Kênh Chat Toàn Cầu (V34)",
+                ["description"] = desc,
+                ["color"] = 3447003
+            }}
+        }
+        pcall(function()
+            http_request({
+                Url = DISCORD_WEBHOOK_URL,
+                Method = "POST",
+                Headers = { ["Content-Type"] = "application/json" },
+                Body = HttpService:JSONEncode(payload)
+            })
+        end)
+    end)
+end
+
+---------------------------------------------------
+-- HÀM CACHE ẢNH / AUDIO / VIDEO AN TOÀN
+---------------------------------------------------
+local function getCacheAsset(url, subFolder)
+    if not url or url == "" then return nil end
+    if url:match("^rbxassetid://") then return url end
+    if not (writefile and isfile and getcustomasset and isfolder and makefolder) then return nil end
+
+    subFolder = subFolder or "AltisMediaV34"
+    pcall(function()
+        if not isfolder(subFolder) then makefolder(subFolder) end
+    end)
+
+    local hash = 0
+    for i = 1, #url do hash = (hash + string.byte(url, i)) % 9999999 end
+
+    local ext = ".bin"
+    if url:match("%.png") then ext = ".png"
+    elseif url:match("%.jpe?g") then ext = ".jpg"
+    elseif url:match("%.mp3") then ext = ".mp3"
+    elseif url:match("%.wav") then ext = ".wav"
+    elseif url:match("%.webm") then ext = ".webm"
+    elseif url:match("%.ogg") then ext = ".ogg"
+    end
+
+    local path = subFolder .. "/" .. hash .. ext
+    if isfile(path) then return getcustomasset(path) end
+    local s, data = pcall(function() return game:HttpGet(url) end)
+    if s and data then
+        writefile(path, data)
+        return getcustomasset(path)
+    end
+    return nil
+end
+
+---------------------------------------------------
+-- HÀM PHÂN TÍCH NỘI DUNG ĐA ELEMENT (dấu ;)
+-- Trả về mảng { type = "msg"|"image"|"audio"|"video", value = "..." }
+---------------------------------------------------
+local function parseElements(raw)
+    local parts = {}
+    for seg in (raw .. ";"):gmatch("([^;]*);") do
+        local s = seg:gsub("^%s+", ""):gsub("%s+$", "")
+        if s ~= "" then
+            table.insert(parts, s)
+        end
+    end
+
+    local result = {}
+    for _, seg in ipairs(parts) do
+        local lower = seg:lower()
+        local isURL = seg:match("^https?://") or seg:match("^rbxassetid://")
+        if isURL then
+            if lower:match("%.mp3") or lower:match("%.wav") or lower:match("%.ogg") then
+                table.insert(result, { type = "audio", value = seg })
+            elseif lower:match("%.webm") then
+                table.insert(result, { type = "video", value = seg })
+            elseif lower:match("%.png") or lower:match("%.jpe?g") or lower:match("%.gif")
+                or lower:match("rbxassetid://") and not lower:match("rbxasset") then
+                table.insert(result, { type = "image", value = seg })
+            else
+                -- URL không rõ: thử nhận dạng bằng extension cuối
+                table.insert(result, { type = "image", value = seg })
+            end
+        else
+            table.insert(result, { type = "msg", value = seg })
+        end
+    end
+    return result
+end
+
+---------------------------------------------------
+-- KHỞI TẠO GIAO DIỆN
+---------------------------------------------------
+local guiParent = (gethui and gethui()) or CoreGui
+local GUI = Instance.new("ScreenGui", guiParent)
+GUI.Name = "AltisGlobal_V343"
+GUI.ResetOnSpawn = false
+pcall(function() syn.protect_gui(GUI) end)
+
+-- Kích thước mặc định
+local DEFAULT_WIN_W = 520
+local DEFAULT_WIN_H = 420
+
+local MainFrame = Instance.new("Frame", GUI)
+MainFrame.Size = UDim2.new(0, DEFAULT_WIN_W, 0, DEFAULT_WIN_H)
+MainFrame.Position = UDim2.new(0.5, -DEFAULT_WIN_W / 2, 0.5, -DEFAULT_WIN_H / 2)
+MainFrame.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
+MainFrame.BorderSizePixel = 0
+MainFrame.ZIndex = 1
+Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 12)
+
+local MainScale = Instance.new("UIScale", MainFrame)
+MainScale.Scale = 1.0
+
+local sizeConstraint = Instance.new("UISizeConstraint", MainFrame)
+sizeConstraint.MinSize = Vector2.new(380, 280)
+sizeConstraint.MaxSize = Vector2.new(900, 800)
+
+local UIStroke = Instance.new("UIStroke", MainFrame)
+UIStroke.Color = Color3.fromRGB(50, 50, 65)
+UIStroke.Thickness = 1.5
+
+---------------------------------------------------
+-- TOPBAR
+---------------------------------------------------
+local Topbar = Instance.new("Frame", MainFrame)
+Topbar.Size = UDim2.new(1, 0, 0, 45)
+Topbar.BackgroundColor3 = Color3.fromRGB(24, 24, 30)
+Topbar.BorderSizePixel = 0
+Topbar.ZIndex = 100
+Instance.new("UICorner", Topbar).CornerRadius = UDim.new(0, 12)
+
+local TopbarCover = Instance.new("Frame", Topbar)
+TopbarCover.Size = UDim2.new(1, 0, 0, 12)
+TopbarCover.Position = UDim2.new(0, 0, 1, -12)
+TopbarCover.BackgroundColor3 = Color3.fromRGB(24, 24, 30)
+TopbarCover.BorderSizePixel = 0
+TopbarCover.ZIndex = 100
+
+local Title = Instance.new("TextLabel", Topbar)
+Title.Size = UDim2.new(0, 220, 1, 0)
+Title.Position = UDim2.new(0, 12, 0, 0)
+Title.BackgroundTransparency = 1
+Title.Text = "🌐 Altis Hub - Global Chat V34.3"
+Title.TextColor3 = Color3.fromRGB(240, 240, 255)
+Title.Font = Enum.Font.GothamBold
+Title.TextSize = 13
+Title.TextXAlignment = Enum.TextXAlignment.Left
+Title.ZIndex = 101
+
+-- Minimize button
+local MinBtn = Instance.new("TextButton", Topbar)
+MinBtn.Size = UDim2.new(0, 30, 0, 30)
+MinBtn.Position = UDim2.new(1, -36, 0, 7)
+MinBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 55)
+MinBtn.Text = "—"
+MinBtn.TextColor3 = Color3.fromRGB(200, 200, 220)
+MinBtn.Font = Enum.Font.GothamBold
+MinBtn.TextSize = 15
+MinBtn.ZIndex = 101
+Instance.new("UICorner", MinBtn).CornerRadius = UDim.new(0, 7)
+
+-- Window Size TextBox: nhập "W,H" ví dụ "600,400"
+local SizeBox = Instance.new("TextBox", Topbar)
+SizeBox.Size = UDim2.new(0, 72, 0, 26)
+SizeBox.Position = UDim2.new(1, -116, 0, 9)
+SizeBox.BackgroundColor3 = Color3.fromRGB(32, 32, 45)
+SizeBox.TextColor3 = Color3.fromRGB(140, 190, 255)
+SizeBox.PlaceholderText = "W,H"
+SizeBox.PlaceholderColor3 = Color3.fromRGB(80, 80, 110)
+SizeBox.Font = Enum.Font.GothamBold
+SizeBox.TextSize = 11
+SizeBox.Text = DEFAULT_WIN_W .. "," .. DEFAULT_WIN_H
+SizeBox.ClearTextOnFocus = false
+SizeBox.ZIndex = 101
+Instance.new("UICorner", SizeBox).CornerRadius = UDim.new(0, 6)
+local SizeStroke = Instance.new("UIStroke", SizeBox)
+SizeStroke.Color = Color3.fromRGB(60, 110, 220)
+SizeStroke.Thickness = 1
+
+SizeBox.FocusLost:Connect(function()
+    local w, h = SizeBox.Text:match("(%d+)[%s,x]+(%d+)")
+    if w and h then
+        local nw = math.clamp(tonumber(w), 380, 900)
+        local nh = math.clamp(tonumber(h), 280, 800)
+        TweenService:Create(MainFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quint), {
+            Size = UDim2.new(0, nw, 0, nh),
+            Position = UDim2.new(0.5, -nw / 2, 0.5, -nh / 2)
+        }):Play()
+        SizeBox.Text = nw .. "," .. nh
+    else
+        local cs = MainFrame.Size
+        SizeBox.Text = math.round(cs.X.Offset) .. "," .. math.round(cs.Y.Offset)
+    end
+end)
+
+-- UI Scale TextBox: nhập "1.0x" hoặc "1.2"
+local ScaleBox = Instance.new("TextBox", Topbar)
+ScaleBox.Size = UDim2.new(0, 52, 0, 26)
+ScaleBox.Position = UDim2.new(1, -176, 0, 9)
+ScaleBox.BackgroundColor3 = Color3.fromRGB(32, 32, 45)
+ScaleBox.TextColor3 = Color3.fromRGB(255, 190, 100)
+ScaleBox.PlaceholderText = "Scale"
+ScaleBox.PlaceholderColor3 = Color3.fromRGB(100, 80, 50)
+ScaleBox.Font = Enum.Font.GothamBold
+ScaleBox.TextSize = 11
+ScaleBox.Text = "1.0x"
+ScaleBox.ClearTextOnFocus = false
+ScaleBox.ZIndex = 101
+Instance.new("UICorner", ScaleBox).CornerRadius = UDim.new(0, 6)
+local ScaleStroke = Instance.new("UIStroke", ScaleBox)
+ScaleStroke.Color = Color3.fromRGB(180, 120, 40)
+ScaleStroke.Thickness = 1
+
+ScaleBox.FocusLost:Connect(function()
+    local num = tonumber(ScaleBox.Text:match("[%d%.]+"))
+    if num then
+        num = math.clamp(num, 0.5, 2.0)
+        MainScale.Scale = num
+        ScaleBox.Text = string.format("%.1fx", num)
+    else
+        ScaleBox.Text = string.format("%.1fx", MainScale.Scale)
+    end
+end)
+
+---------------------------------------------------
+-- DRAG MƯỢ MÀ
+---------------------------------------------------
+local dragInput, dragStart, startPos = nil, nil, nil
+
+Topbar.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1
+    or input.UserInputType == Enum.UserInputType.Touch then
+        if not dragInput then
+            dragInput = input
+            dragStart = input.Position
+            startPos = MainFrame.Position
+        end
+    end
+end)
+UserInputService.InputEnded:Connect(function(input)
+    if input == dragInput then dragInput = nil end
+end)
+UserInputService.InputChanged:Connect(function(input)
+    if input == dragInput then
+        local delta = input.Position - dragStart
+        TweenService:Create(MainFrame, TweenInfo.new(0.1, Enum.EasingStyle.Sine), {
+            Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X,
+                                 startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+        }):Play()
+    end
+end)
+
+---------------------------------------------------
+-- TABS
+---------------------------------------------------
+local TabBar = Instance.new("Frame", MainFrame)
+TabBar.Size = UDim2.new(1, -20, 0, 36)
+TabBar.Position = UDim2.new(0, 10, 0, 52)
+TabBar.BackgroundTransparency = 1
+TabBar.ZIndex = 5
+local TabList = Instance.new("UIListLayout", TabBar)
+TabList.FillDirection = Enum.FillDirection.Horizontal
+TabList.Padding = UDim.new(0, 8)
+
+local ContentArea = Instance.new("Frame", MainFrame)
+ContentArea.Size = UDim2.new(1, -20, 1, -168)
+ContentArea.Position = UDim2.new(0, 10, 0, 95)
+ContentArea.BackgroundTransparency = 1
+ContentArea.ZIndex = 5
+
+local Pages, TabBtns = {}, {}
+
+local function createTab(name, id, widthRatio)
+    local btn = Instance.new("TextButton", TabBar)
+    btn.Size = UDim2.new(widthRatio, -4, 1, 0)
+    btn.BackgroundColor3 = Color3.fromRGB(30, 30, 38)
+    btn.Text = name
+    btn.TextColor3 = Color3.fromRGB(160, 160, 175)
+    btn.Font = Enum.Font.GothamBold
+    btn.TextSize = 12
+    btn.ZIndex = 6
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 8)
+
+    local page = Instance.new("ScrollingFrame", ContentArea)
+    page.Size = UDim2.new(1, 0, 1, 0)
+    page.BackgroundTransparency = 1
+    page.ScrollBarThickness = 4
+    page.ScrollBarImageColor3 = Color3.fromRGB(80, 80, 105)
+    page.AutomaticCanvasSize = Enum.AutomaticSize.Y
+    page.CanvasSize = UDim2.new(0, 0, 0, 0)
+    page.Visible = false
+    page.ZIndex = 6
+
+    local layout = Instance.new("UIListLayout", page)
+    layout.Padding = UDim.new(0, 10)
+    local pad = Instance.new("UIPadding", page)
+    pad.PaddingTop = UDim.new(0, 5); pad.PaddingBottom = UDim.new(0, 10)
+    pad.PaddingLeft = UDim.new(0, 2); pad.PaddingRight = UDim.new(0, 5)
+
+    layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+        page.CanvasPosition = Vector2.new(0, layout.AbsoluteContentSize.Y + 2000)
+    end)
+
+    Pages[id], TabBtns[id] = page, btn
+
+    btn.MouseButton1Click:Connect(function()
+        for k, p in pairs(Pages) do p.Visible = (k == id) end
+        for k, b in pairs(TabBtns) do
+            b.BackgroundColor3 = (k == id) and Color3.fromRGB(65, 120, 220) or Color3.fromRGB(30, 30, 38)
+            b.TextColor3 = (k == id) and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(160, 160, 175)
+        end
+        local pl = Pages[id]:FindFirstChildWhichIsA("UIListLayout")
+        if pl then Pages[id].CanvasPosition = Vector2.new(0, pl.AbsoluteContentSize.Y + 2000) end
+    end)
+end
+
+createTab("💬 Kênh Chat", "chat", 0.495)
+createTab("🟢 Người Dùng Online", "online", 0.495)
+TabBtns["chat"].BackgroundColor3 = Color3.fromRGB(65, 120, 220)
+TabBtns["chat"].TextColor3 = Color3.fromRGB(255, 255, 255)
+Pages["chat"].Visible = true
+
+---------------------------------------------------
+-- INPUT CONTAINER
+---------------------------------------------------
+local InputContainer = Instance.new("Frame", MainFrame)
+InputContainer.Size = UDim2.new(1, -20, 0, 58)
+InputContainer.Position = UDim2.new(0, 10, 1, -68)
+InputContainer.BackgroundColor3 = Color3.fromRGB(24, 24, 30)
+InputContainer.ZIndex = 5
+Instance.new("UICorner", InputContainer).CornerRadius = UDim.new(0, 10)
+
+local MsgBox = Instance.new("TextBox", InputContainer)
+MsgBox.Size = UDim2.new(1, -90, 0, 34)
+MsgBox.Position = UDim2.new(0, 10, 0, 12)
+MsgBox.BackgroundColor3 = Color3.fromRGB(32, 32, 42)
+MsgBox.TextColor3 = Color3.fromRGB(240, 240, 255)
+MsgBox.PlaceholderText = "Nhập tin nhắn / URL ảnh / audio / video... (dùng ; để gửi nhiều)"
+MsgBox.PlaceholderColor3 = Color3.fromRGB(100, 100, 125)
+MsgBox.Font = Enum.Font.Gotham
+MsgBox.TextSize = 12
+MsgBox.TextXAlignment = Enum.TextXAlignment.Left
+MsgBox.ClearTextOnFocus = false
+MsgBox.ZIndex = 6
+MsgBox.ClipsDescendants = true
+MsgBox.TextWrapped = false
+Instance.new("UICorner", MsgBox).CornerRadius = UDim.new(0, 8)
+local MsgPad = Instance.new("UIPadding", MsgBox)
+MsgPad.PaddingLeft = UDim.new(0, 10)
+
+local SendBtn = Instance.new("TextButton", InputContainer)
+SendBtn.Size = UDim2.new(0, 62, 0, 34)
+SendBtn.Position = UDim2.new(1, -72, 0, 12)
+SendBtn.BackgroundColor3 = Color3.fromRGB(55, 165, 90)
+SendBtn.Text = "GỬI"
+SendBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+SendBtn.Font = Enum.Font.GothamBold
+SendBtn.TextSize = 13
+SendBtn.ZIndex = 6
+Instance.new("UICorner", SendBtn).CornerRadius = UDim.new(0, 8)
+
+---------------------------------------------------
+-- MINIMIZE
+---------------------------------------------------
+local isMinimized = false
+MinBtn.MouseButton1Click:Connect(function()
+    isMinimized = not isMinimized
+    if isMinimized then
+        sizeConstraint.MinSize = Vector2.new(380, 45)
+        MainFrame.ClipsDescendants = true
+        TweenService:Create(MainFrame, TweenInfo.new(0.2), { Size = UDim2.new(0, MainFrame.Size.X.Offset, 0, 45) }):Play()
+        TabBar.Visible = false; ContentArea.Visible = false; InputContainer.Visible = false
+    else
+        sizeConstraint.MinSize = Vector2.new(380, 280)
+        MainFrame.ClipsDescendants = false
+        local w, h = SizeBox.Text:match("(%d+)[%s,x]+(%d+)")
+        local nw = tonumber(w) or DEFAULT_WIN_W
+        local nh = tonumber(h) or DEFAULT_WIN_H
+        TweenService:Create(MainFrame, TweenInfo.new(0.2), { Size = UDim2.new(0, nw, 0, nh) }):Play()
+        TabBar.Visible = true; ContentArea.Visible = true; InputContainer.Visible = true
+    end
+end)
+
+---------------------------------------------------
+-- AUDIO PLAYER WIDGET
+-- Trả về Frame chứa toàn bộ audio player
+-- audioSrc: rbxassetid:// hoặc URL mp3/wav
+---------------------------------------------------
+local function createAudioPlayer(audioSrc, titleText, parentFrame)
+    local COLORS = {
+        bg = Color3.fromRGB(28, 28, 38),
+        strip = Color3.fromRGB(55, 100, 200),
+        btn = Color3.fromRGB(40, 40, 55),
+        btnHover = Color3.fromRGB(60, 110, 220),
+        text = Color3.fromRGB(210, 215, 255),
+        sub = Color3.fromRGB(130, 135, 160),
+        trackBg = Color3.fromRGB(35, 35, 48),
+        trackFill = Color3.fromRGB(65, 130, 230),
+        volBg = Color3.fromRGB(35, 35, 48),
+    }
+
+    local AF = Instance.new("Frame", parentFrame)
+    AF.Size = UDim2.new(1, 0, 0, 0)
+    AF.AutomaticSize = Enum.AutomaticSize.Y
+    AF.BackgroundColor3 = COLORS.bg
+    AF.BorderSizePixel = 0
+    AF.ZIndex = 7
+    Instance.new("UICorner", AF).CornerRadius = UDim.new(0, 10)
+    local AFStroke = Instance.new("UIStroke", AF)
+    AFStroke.Color = COLORS.strip
+    AFStroke.Thickness = 1.2
+
+    local AFPad = Instance.new("UIPadding", AF)
+    AFPad.PaddingTop = UDim.new(0, 8)
+    AFPad.PaddingBottom = UDim.new(0, 10)
+    AFPad.PaddingLeft = UDim.new(0, 10)
+    AFPad.PaddingRight = UDim.new(0, 10)
+
+    local ALayout = Instance.new("UIListLayout", AF)
+    ALayout.Padding = UDim.new(0, 6)
+
+    -- Title
+    local TitleLbl = Instance.new("TextLabel", AF)
+    TitleLbl.Size = UDim2.new(1, 0, 0, 18)
+    TitleLbl.BackgroundTransparency = 1
+    TitleLbl.Text = "🎵  " .. (titleText or "Audio")
+    TitleLbl.Font = Enum.Font.GothamBold
+    TitleLbl.TextSize = 12
+    TitleLbl.TextColor3 = COLORS.text
+    TitleLbl.TextXAlignment = Enum.TextXAlignment.Left
+    TitleLbl.ZIndex = 8
+    TitleLbl.TextTruncate = Enum.TextTruncate.AtEnd
+
+    -- Controls row
+    local CtrlRow = Instance.new("Frame", AF)
+    CtrlRow.Size = UDim2.new(1, 0, 0, 30)
+    CtrlRow.BackgroundTransparency = 1
+    CtrlRow.ZIndex = 8
+
+    -- Play/Stop button
+    local PlayBtn = Instance.new("TextButton", CtrlRow)
+    PlayBtn.Size = UDim2.new(0, 60, 0, 28)
+    PlayBtn.Position = UDim2.new(0, 0, 0, 1)
+    PlayBtn.BackgroundColor3 = COLORS.btnHover
+    PlayBtn.Text = "▶ Play"
+    PlayBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    PlayBtn.Font = Enum.Font.GothamBold
+    PlayBtn.TextSize = 11
+    PlayBtn.ZIndex = 9
+    Instance.new("UICorner", PlayBtn).CornerRadius = UDim.new(0, 7)
+
+    -- Looped button
+    local LoopBtn = Instance.new("TextButton", CtrlRow)
+    LoopBtn.Size = UDim2.new(0, 62, 0, 28)
+    LoopBtn.Position = UDim2.new(0, 68, 0, 1)
+    LoopBtn.BackgroundColor3 = COLORS.btn
+    LoopBtn.Text = "🔁 Loop"
+    LoopBtn.TextColor3 = COLORS.sub
+    LoopBtn.Font = Enum.Font.GothamBold
+    LoopBtn.TextSize = 11
+    LoopBtn.ZIndex = 9
+    Instance.new("UICorner", LoopBtn).CornerRadius = UDim.new(0, 7)
+
+    -- Volume textbox
+    local VolBox = Instance.new("TextBox", CtrlRow)
+    VolBox.Size = UDim2.new(0, 48, 0, 28)
+    VolBox.Position = UDim2.new(0, 138, 0, 1)
+    VolBox.BackgroundColor3 = COLORS.btn
+    VolBox.TextColor3 = COLORS.text
+    VolBox.PlaceholderText = "Vol"
+    VolBox.PlaceholderColor3 = COLORS.sub
+    VolBox.Font = Enum.Font.GothamBold
+    VolBox.TextSize = 11
+    VolBox.Text = "0.8"
+    VolBox.ZIndex = 9
+    Instance.new("UICorner", VolBox).CornerRadius = UDim.new(0, 7)
+
+    -- Time display (right side)
+    local TimeLbl = Instance.new("TextLabel", CtrlRow)
+    TimeLbl.Size = UDim2.new(0, 85, 0, 28)
+    TimeLbl.Position = UDim2.new(1, -85, 0, 1)
+    TimeLbl.BackgroundTransparency = 1
+    TimeLbl.Text = "0:00 / 0:00"
+    TimeLbl.Font = Enum.Font.GothamBold
+    TimeLbl.TextSize = 11
+    TimeLbl.TextColor3 = COLORS.sub
+    TimeLbl.TextXAlignment = Enum.TextXAlignment.Right
+    TimeLbl.ZIndex = 9
+
+    -- Progress slider row
+    local SliderBg = Instance.new("Frame", AF)
+    SliderBg.Size = UDim2.new(1, 0, 0, 18)
+    SliderBg.BackgroundColor3 = COLORS.trackBg
+    SliderBg.BorderSizePixel = 0
+    SliderBg.ZIndex = 8
+    Instance.new("UICorner", SliderBg).CornerRadius = UDim.new(0, 9)
+    local AFSStroke = Instance.new("UIStroke", SliderBg)
+    AFSStroke.Color = Color3.fromRGB(45, 45, 65)
+    AFSStroke.Thickness = 1
+
+    local SliderFill = Instance.new("Frame", SliderBg)
+    SliderFill.Size = UDim2.new(0, 0, 1, 0)
+    SliderFill.BackgroundColor3 = COLORS.trackFill
+    SliderFill.BorderSizePixel = 0
+    SliderFill.ZIndex = 9
+    Instance.new("UICorner", SliderFill).CornerRadius = UDim.new(0, 9)
+
+    local SliderKnob = Instance.new("Frame", SliderBg)
+    SliderKnob.Size = UDim2.new(0, 20, 0, 20)
+    SliderKnob.AnchorPoint = Vector2.new(0.5, 0.5)
+    SliderKnob.Position = UDim2.new(0, 0, 0.5, 0)
+    SliderKnob.BackgroundColor3 = Color3.fromRGB(220, 235, 255)
+    SliderKnob.BorderSizePixel = 0
+    SliderKnob.ZIndex = 10
+    Instance.new("UICorner", SliderKnob).CornerRadius = UDim.new(1, 0)
+    -- Inner dot for visual depth
+    local KnobDot = Instance.new("Frame", SliderKnob)
+    KnobDot.Size = UDim2.new(0, 8, 0, 8)
+    KnobDot.AnchorPoint = Vector2.new(0.5, 0.5)
+    KnobDot.Position = UDim2.new(0.5, 0, 0.5, 0)
+    KnobDot.BackgroundColor3 = Color3.fromRGB(65, 130, 230)
+    KnobDot.BorderSizePixel = 0
+    KnobDot.ZIndex = 11
+    Instance.new("UICorner", KnobDot).CornerRadius = UDim.new(1, 0)
+
+    -- Sound instance
+    local Sound = Instance.new("Sound", AF)
+    Sound.Volume = 0.8
+    Sound.Looped = false
+
+    local looped = false
+    local isPlaying = false
+    local sliderDragging = false
+    local resolvedSrc = nil
+    -- localSeekTime: biến cục bộ kiểm soát thời gian seek, tránh race với Sound.TimePosition
+    local localSeekTime = 0
+    local useLocalSeek = false -- true khi đang kéo slider
+
+    local function formatTime(s)
+        s = math.max(0, math.floor(s))
+        return string.format("%d:%02d", math.floor(s / 60), s % 60)
+    end
+
+    -- -----------------------------------------------
+    -- STATE MACHINE: tự quản lý curTime, không tin Sound.TimePosition
+    -- Roblox Sound:Play() reset TimePosition về 0 mỗi lần gọi.
+    -- Giải pháp: Stop rồi Play, sau đó seek về curTime thủ công.
+    -- -----------------------------------------------
+
+    -- curTime: thời gian hiện tại do chúng ta quản lý (giây)
+    -- Đây là source of truth duy nhất. Sound.TimePosition chỉ được đọc
+    -- khi đang phát thực sự (không seek, không pause).
+    local curTime = 0
+    local lastHeartbeatTick = 0   -- os.clock() của frame trước, để tính delta
+
+    local function applyVisual(t, dur)
+        local frac = (dur > 0) and math.clamp(t / dur, 0, 1) or 0
+        SliderFill.Size = UDim2.new(frac, 0, 1, 0)
+        SliderKnob.Position = UDim2.new(frac, 0, 0.5, 0)
+        TimeLbl.Text = formatTime(t) .. " / " .. formatTime(dur)
+    end
+
+    -- Hàm seek nội bộ: stop -> TimePosition -> play (nếu đang phát)
+    -- Dùng Stop/Play thay vì Pause/Play vì Pause không bảo toàn vị trí đúng.
+    local function seekTo(t)
+        curTime = math.clamp(t, 0, Sound.TimeLength > 0 and Sound.TimeLength or 0)
+        local wasPlaying = isPlaying
+        Sound:Stop()                       -- reset engine về 0
+        Sound.TimePosition = curTime       -- set trước khi Play
+        if wasPlaying then
+            Sound:Play()
+            -- Roblox cần 1 frame để nhận TimePosition sau Play,
+            -- nên ta set lại sau 1 frame nữa để chắc chắn
+            task.defer(function()
+                if isPlaying then
+                    Sound.TimePosition = curTime
+                end
+            end)
+        end
+        applyVisual(curTime, Sound.TimeLength)
+    end
+
+    -- Resolve audio source
+    task.spawn(function()
+        local src = audioSrc
+        if src:match("^rbxassetid://") then
+            resolvedSrc = src
+        elseif src:match("^https?://") then
+            local cached = getCacheAsset(src, "AltisAudioV34")
+            resolvedSrc = cached or src
+        end
+        Sound.SoundId = resolvedSrc or ""
+    end)
+
+    -- Heartbeat: khi đang phát, tự cộng delta vào curTime thay vì đọc Sound.TimePosition
+    -- Điều này đảm bảo curTime không bao giờ bị reset bởi engine.
+    local progressConn
+    progressConn = game:GetService("RunService").Heartbeat:Connect(function(dt)
+        local dur = Sound.TimeLength
+        if sliderDragging then
+            applyVisual(localSeekTime, dur)
+            return
+        end
+        if not isPlaying then return end
+        curTime = curTime + dt
+        if dur > 0 and curTime >= dur then
+            if looped then
+                -- Loop: reset curTime về 0, tiếp tục phát
+                curTime = curTime - dur  -- giữ phần dư thay vì hard-reset để mượt hơn
+                if curTime < 0 then curTime = 0 end
+                applyVisual(curTime, dur)
+            else
+                -- Hết bài, không loop
+                curTime = dur
+                applyVisual(curTime, dur)
+                -- Sound.Ended sẽ xử lý state (chỉ fire khi Looped = false)
+            end
+            return
+        end
+        applyVisual(curTime, dur)
+    end)
+
+    AF.Destroying:Connect(function()
+        progressConn:Disconnect()
+        Sound:Stop()
+    end)
+
+    -- Khi audio kết thúc tự nhiên (chỉ fire khi Sound.Looped = false)
+    Sound.Ended:Connect(function()
+        if looped then return end  -- guard: nếu looped thì heartbeat đã xử lý
+        isPlaying = false
+        curTime = 0
+        PlayBtn.Text = "▶ Play"
+        PlayBtn.BackgroundColor3 = COLORS.btnHover
+        applyVisual(0, Sound.TimeLength)
+    end)
+
+    -- DidLoop: Roblox engine tự loop (Sound.Looped=true) — reset curTime về 0
+    -- Quan trọng: phải handle cả trường hợp này vì engine loop độc lập với heartbeat delta
+    Sound.DidLoop:Connect(function()
+        curTime = 0
+        applyVisual(0, Sound.TimeLength)
+    end)
+
+    -- Play / Pause
+    PlayBtn.MouseButton1Click:Connect(function()
+        if not resolvedSrc then return end
+        if isPlaying then
+            -- PAUSE: lưu curTime, dừng engine
+            Sound:Stop()
+            isPlaying = false
+            PlayBtn.Text = "▶ Play"
+            PlayBtn.BackgroundColor3 = COLORS.btnHover
+            -- curTime không đổi — đây là điểm resume
+        else
+            -- PLAY / RESUME từ curTime
+            isPlaying = true
+            PlayBtn.Text = "⏸ Stop"
+            PlayBtn.BackgroundColor3 = Color3.fromRGB(200, 60, 60)
+            Sound:Stop()               -- đảm bảo engine reset trước
+            Sound.TimePosition = curTime
+            Sound:Play()
+            task.defer(function()
+                -- Roblox đôi khi bỏ qua TimePosition set trước Play,
+                -- set lại sau 1 frame để chắc chắn
+                if isPlaying then
+                    Sound.TimePosition = curTime
+                end
+            end)
+        end
+    end)
+
+    LoopBtn.MouseButton1Click:Connect(function()
+        looped = not looped
+        Sound.Looped = looped
+        LoopBtn.BackgroundColor3 = looped and COLORS.btnHover or COLORS.btn
+        LoopBtn.TextColor3 = looped and Color3.fromRGB(255, 255, 255) or COLORS.sub
+    end)
+
+    VolBox.FocusLost:Connect(function()
+        local v = tonumber(VolBox.Text)
+        if v then
+            v = math.clamp(v, 0, 1)
+            Sound.Volume = v
+            VolBox.Text = string.format("%.2f", v)
+        else
+            VolBox.Text = string.format("%.2f", Sound.Volume)
+        end
+    end)
+
+    -- Slider drag
+    local function fracFromInput(inputPos)
+        local absPos = SliderBg.AbsolutePosition
+        local absSize = SliderBg.AbsoluteSize
+        return math.clamp((inputPos.X - absPos.X) / absSize.X, 0, 1)
+    end
+
+    SliderBg.InputBegan:Connect(function(inp)
+        if inp.UserInputType == Enum.UserInputType.MouseButton1
+        or inp.UserInputType == Enum.UserInputType.Touch then
+            sliderDragging = true
+            local frac = fracFromInput(inp.Position)
+            localSeekTime = frac * (Sound.TimeLength > 0 and Sound.TimeLength or 0)
+        end
+    end)
+
+    UserInputService.InputChanged:Connect(function(inp)
+        if sliderDragging and (inp.UserInputType == Enum.UserInputType.MouseMovement
+        or inp.UserInputType == Enum.UserInputType.Touch) then
+            local frac = fracFromInput(inp.Position)
+            localSeekTime = frac * (Sound.TimeLength > 0 and Sound.TimeLength or 0)
+        end
+    end)
+
+    UserInputService.InputEnded:Connect(function(inp)
+        if sliderDragging and (inp.UserInputType == Enum.UserInputType.MouseButton1
+        or inp.UserInputType == Enum.UserInputType.Touch) then
+            sliderDragging = false
+            -- Commit: gọi seekTo để đồng bộ curTime + engine
+            seekTo(localSeekTime)
+        end
+    end)
+
+    return AF
+end
+
+---------------------------------------------------
+-- VIDEO PLAYER WIDGET
+-- videoSrc: raw webm link
+---------------------------------------------------
+local function createVideoPlayer(videoSrc, parentFrame)
+    local COLORS = {
+        bg = Color3.fromRGB(22, 22, 32),
+        strip = Color3.fromRGB(80, 55, 180),
+        btn = Color3.fromRGB(40, 40, 55),
+        btnHover = Color3.fromRGB(80, 60, 200),
+        text = Color3.fromRGB(210, 205, 255),
+        sub = Color3.fromRGB(130, 120, 165),
+        trackBg = Color3.fromRGB(32, 32, 48),
+        trackFill = Color3.fromRGB(90, 65, 210),
+    }
+
+    local VF = Instance.new("Frame", parentFrame)
+    VF.Size = UDim2.new(1, 0, 0, 0)
+    VF.AutomaticSize = Enum.AutomaticSize.Y
+    VF.BackgroundColor3 = COLORS.bg
+    VF.BorderSizePixel = 0
+    VF.ZIndex = 7
+    Instance.new("UICorner", VF).CornerRadius = UDim.new(0, 10)
+    local VFStroke = Instance.new("UIStroke", VF)
+    VFStroke.Color = COLORS.strip
+    VFStroke.Thickness = 1.2
+
+    local VFPad = Instance.new("UIPadding", VF)
+    VFPad.PaddingTop = UDim.new(0, 8)
+    VFPad.PaddingBottom = UDim.new(0, 10)
+    VFPad.PaddingLeft = UDim.new(0, 10)
+    VFPad.PaddingRight = UDim.new(0, 10)
+
+    local VLayout = Instance.new("UIListLayout", VF)
+    VLayout.Padding = UDim.new(0, 6)
+
+    -- Video container: hình vuông (dùng SizeConstraint RelativeXX)
+    local VideoContainer = Instance.new("Frame", VF)
+    VideoContainer.SizeConstraint = Enum.SizeConstraint.RelativeXX
+    VideoContainer.Size = UDim2.new(1, 0, 1, 0)
+    VideoContainer.BackgroundColor3 = Color3.fromRGB(10, 10, 18)
+    VideoContainer.BorderSizePixel = 0
+    VideoContainer.ZIndex = 8
+    VideoContainer.ClipsDescendants = true
+    Instance.new("UICorner", VideoContainer).CornerRadius = UDim.new(0, 8)
+
+    local LoadingLbl = Instance.new("TextLabel", VideoContainer)
+    LoadingLbl.Size = UDim2.new(1, 0, 1, 0)
+    LoadingLbl.BackgroundTransparency = 1
+    LoadingLbl.Text = "🎬  Đang tải video..."
+    LoadingLbl.Font = Enum.Font.GothamBold
+    LoadingLbl.TextSize = 13
+    LoadingLbl.TextColor3 = COLORS.sub
+    LoadingLbl.ZIndex = 9
+
+    local VidFrame = Instance.new("VideoFrame", VideoContainer)
+    VidFrame.Size = UDim2.new(1, 0, 1, 0)
+    VidFrame.BackgroundTransparency = 1
+    VidFrame.ScaleType = Enum.ScaleType.Fit
+    VidFrame.ZIndex = 9
+    VidFrame.Visible = false
+
+    -- Controls row (copy audio layout)
+    local CtrlRow = Instance.new("Frame", VF)
+    CtrlRow.Size = UDim2.new(1, 0, 0, 30)
+    CtrlRow.BackgroundTransparency = 1
+    CtrlRow.ZIndex = 8
+
+    local PlayBtn = Instance.new("TextButton", CtrlRow)
+    PlayBtn.Size = UDim2.new(0, 60, 0, 28)
+    PlayBtn.Position = UDim2.new(0, 0, 0, 1)
+    PlayBtn.BackgroundColor3 = COLORS.btnHover
+    PlayBtn.Text = "▶ Play"
+    PlayBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    PlayBtn.Font = Enum.Font.GothamBold
+    PlayBtn.TextSize = 11
+    PlayBtn.ZIndex = 9
+    Instance.new("UICorner", PlayBtn).CornerRadius = UDim.new(0, 7)
+
+    local LoopBtn = Instance.new("TextButton", CtrlRow)
+    LoopBtn.Size = UDim2.new(0, 62, 0, 28)
+    LoopBtn.Position = UDim2.new(0, 68, 0, 1)
+    LoopBtn.BackgroundColor3 = COLORS.btn
+    LoopBtn.Text = "🔁 Loop"
+    LoopBtn.TextColor3 = COLORS.sub
+    LoopBtn.Font = Enum.Font.GothamBold
+    LoopBtn.TextSize = 11
+    LoopBtn.ZIndex = 9
+    Instance.new("UICorner", LoopBtn).CornerRadius = UDim.new(0, 7)
+
+    local VolBox = Instance.new("TextBox", CtrlRow)
+    VolBox.Size = UDim2.new(0, 48, 0, 28)
+    VolBox.Position = UDim2.new(0, 138, 0, 1)
+    VolBox.BackgroundColor3 = COLORS.btn
+    VolBox.TextColor3 = COLORS.text
+    VolBox.PlaceholderText = "Vol"
+    VolBox.PlaceholderColor3 = COLORS.sub
+    VolBox.Font = Enum.Font.GothamBold
+    VolBox.TextSize = 11
+    VolBox.Text = "0.8"
+    VolBox.ZIndex = 9
+    Instance.new("UICorner", VolBox).CornerRadius = UDim.new(0, 7)
+
+    local TimeLbl = Instance.new("TextLabel", CtrlRow)
+    TimeLbl.Size = UDim2.new(0, 85, 0, 28)
+    TimeLbl.Position = UDim2.new(1, -85, 0, 1)
+    TimeLbl.BackgroundTransparency = 1
+    TimeLbl.Text = "0:00 / 0:00"
+    TimeLbl.Font = Enum.Font.GothamBold
+    TimeLbl.TextSize = 11
+    TimeLbl.TextColor3 = COLORS.sub
+    TimeLbl.TextXAlignment = Enum.TextXAlignment.Right
+    TimeLbl.ZIndex = 9
+
+    -- Progress slider
+    local SliderBg = Instance.new("Frame", VF)
+    SliderBg.Size = UDim2.new(1, 0, 0, 18)
+    SliderBg.BackgroundColor3 = COLORS.trackBg
+    SliderBg.BorderSizePixel = 0
+    SliderBg.ZIndex = 8
+    Instance.new("UICorner", SliderBg).CornerRadius = UDim.new(0, 9)
+    local VSSStroke = Instance.new("UIStroke", SliderBg)
+    VSSStroke.Color = Color3.fromRGB(45, 40, 70)
+    VSSStroke.Thickness = 1
+
+    local SliderFill = Instance.new("Frame", SliderBg)
+    SliderFill.Size = UDim2.new(0, 0, 1, 0)
+    SliderFill.BackgroundColor3 = COLORS.trackFill
+    SliderFill.BorderSizePixel = 0
+    SliderFill.ZIndex = 9
+    Instance.new("UICorner", SliderFill).CornerRadius = UDim.new(0, 9)
+
+    local SliderKnob = Instance.new("Frame", SliderBg)
+    SliderKnob.Size = UDim2.new(0, 14, 0, 14)
+    SliderKnob.AnchorPoint = Vector2.new(0.5, 0.5)
+    SliderKnob.Position = UDim2.new(0, 0, 0.5, 0)
+    SliderKnob.BackgroundColor3 = Color3.fromRGB(190, 180, 255)
+    SliderKnob.BorderSizePixel = 0
+    SliderKnob.ZIndex = 10
+    Instance.new("UICorner", SliderKnob).CornerRadius = UDim.new(1, 0)
+
+    local isPlaying = false
+    local isSeeking = false
+    local looped = false
+    local loaded = false
+
+    local function formatTime(s)
+        s = math.floor(s)
+        return string.format("%d:%02d", math.floor(s / 60), s % 60)
+    end
+
+    -- Load video
+    task.spawn(function()
+        local cached = getCacheAsset(videoSrc, "AltisVideoV34")
+        if cached then
+            VidFrame.Video = cached
+            VidFrame.Visible = true
+            LoadingLbl.Visible = false
+            loaded = true
+        else
+            LoadingLbl.Text = "⚠️ Không thể tải video"
+            LoadingLbl.TextColor3 = Color3.fromRGB(255, 100, 100)
+        end
+    end)
+
+    -- Heartbeat for progress
+    local vConn
+    vConn = game:GetService("RunService").Heartbeat:Connect(function()
+        if not isPlaying or isSeeking or not loaded then return end
+        if VidFrame.TimeLength > 0 then
+            local frac = math.clamp(VidFrame.TimePosition / VidFrame.TimeLength, 0, 1)
+            SliderFill.Size = UDim2.new(frac, 0, 1, 0)
+            SliderKnob.Position = UDim2.new(frac, 0, 0.5, 0)
+            TimeLbl.Text = formatTime(VidFrame.TimePosition) .. " / " .. formatTime(VidFrame.TimeLength)
+        end
+    end)
+    VF.Destroying:Connect(function()
+        vConn:Disconnect()
+        VidFrame:Stop()
+    end)
+
+    VidFrame.DidLoop:Connect(function()
+        if not looped then
+            VidFrame:Stop()
+            isPlaying = false
+            PlayBtn.Text = "▶ Play"
+            PlayBtn.BackgroundColor3 = COLORS.btnHover
+        end
+    end)
+
+    PlayBtn.MouseButton1Click:Connect(function()
+        if not loaded then return end
+        if isPlaying then
+            VidFrame:Pause()
+            isPlaying = false
+            PlayBtn.Text = "▶ Play"
+            PlayBtn.BackgroundColor3 = COLORS.btnHover
+        else
+            VidFrame:Play()
+            isPlaying = true
+            PlayBtn.Text = "⏸ Stop"
+            PlayBtn.BackgroundColor3 = Color3.fromRGB(160, 50, 200)
+        end
+    end)
+
+    LoopBtn.MouseButton1Click:Connect(function()
+        looped = not looped
+        LoopBtn.BackgroundColor3 = looped and COLORS.btnHover or COLORS.btn
+        LoopBtn.TextColor3 = looped and Color3.fromRGB(255, 255, 255) or COLORS.sub
+    end)
+
+    VolBox.FocusLost:Connect(function()
+        local v = tonumber(VolBox.Text)
+        if v then
+            v = math.clamp(v, 0, 1)
+            VidFrame.Volume = v
+            VolBox.Text = string.format("%.2f", v)
+        else
+            VolBox.Text = string.format("%.2f", VidFrame.Volume)
+        end
+    end)
+
+    -- Slider drag
+    local sliderDragging = false
+    SliderBg.InputBegan:Connect(function(inp)
+        if inp.UserInputType == Enum.UserInputType.MouseButton1
+        or inp.UserInputType == Enum.UserInputType.Touch then
+            sliderDragging = true
+            isSeeking = true
+            local absPos = SliderBg.AbsolutePosition
+            local absSize = SliderBg.AbsoluteSize
+            local frac = math.clamp((inp.Position.X - absPos.X) / absSize.X, 0, 1)
+            SliderFill.Size = UDim2.new(frac, 0, 1, 0)
+            SliderKnob.Position = UDim2.new(frac, 0, 0.5, 0)
+            if VidFrame.TimeLength > 0 then
+                VidFrame.TimePosition = frac * VidFrame.TimeLength
+            end
+        end
+    end)
+    UserInputService.InputEnded:Connect(function(inp)
+        if sliderDragging and (inp.UserInputType == Enum.UserInputType.MouseButton1
+        or inp.UserInputType == Enum.UserInputType.Touch) then
+            sliderDragging = false
+            isSeeking = false
+        end
+    end)
+    UserInputService.InputChanged:Connect(function(inp)
+        if sliderDragging and (inp.UserInputType == Enum.UserInputType.MouseMovement
+        or inp.UserInputType == Enum.UserInputType.Touch) then
+            local absPos = SliderBg.AbsolutePosition
+            local absSize = SliderBg.AbsoluteSize
+            local frac = math.clamp((inp.Position.X - absPos.X) / absSize.X, 0, 1)
+            SliderFill.Size = UDim2.new(frac, 0, 1, 0)
+            SliderKnob.Position = UDim2.new(frac, 0, 0.5, 0)
+            if VidFrame.TimeLength > 0 then
+                VidFrame.TimePosition = frac * VidFrame.TimeLength
+            end
+        end
+    end)
+
+    return VF
+end
+
+---------------------------------------------------
+-- RENDER TIN NHẮN ĐA ELEMENT
+-- msgData.elements = array { type, value }
+---------------------------------------------------
+local msgFrames = {}
+local seenMsgs = {}
+local isInitialLoad = true
+task.delay(2.5, function() isInitialLoad = false end)
+
+local function renderMessage(msgData)
+    local uName = msgData.username or "Unknown"
+    local dName = msgData.displayName or "Unknown"
+    local uId = tonumber(msgData.userId) or 1
+    local tStamp = msgData.timestamp or os.time()
+    local elements = msgData.elements or {}
+
+    -- Backward compat: nếu là dữ liệu V33 cũ
+    if #elements == 0 then
+        local text = msgData.message or ""
+        local imgLink = msgData.imageLink or ""
+        if text ~= "" then table.insert(elements, { type = "msg", value = text }) end
+        if imgLink ~= "" then table.insert(elements, { type = "image", value = imgLink }) end
+    end
+
+    local isSelf = (uName == LocalPlayer.Name)
+    local timeString = os.date("%H:%M", tStamp)
+
+    if not isInitialLoad and not isSelf then
+        local firstMsg = ""
+        for _, el in ipairs(elements) do
+            if el.type == "msg" then firstMsg = el.value; break end
+        end
+        if firstMsg == "" then firstMsg = "🖼️ [Đã gửi media]" end
+        pcall(function()
+            StarterGui:SetCore("SendNotification", {
+                Title = "💬 @" .. uName,
+                Text = firstMsg,
+                Icon = "rbxthumb://type=AvatarHeadShot&id=" .. uId .. "&w=150&h=150",
+                Duration = 4
+            })
+        end)
+    end
+
+    local Frame = Instance.new("Frame", Pages["chat"])
+    Frame.BackgroundColor3 = isSelf and Color3.fromRGB(42, 80, 145) or Color3.fromRGB(30, 30, 40)
+    Frame.Size = UDim2.new(1, 0, 0, 0)
+    Frame.AutomaticSize = Enum.AutomaticSize.Y
+    Frame.ZIndex = 6
+    Instance.new("UICorner", Frame).CornerRadius = UDim.new(0, 10)
+
+    local outerLayout = Instance.new("UIListLayout", Frame)
+    outerLayout.Padding = UDim.new(0, 6)
+    local outerPad = Instance.new("UIPadding", Frame)
+    outerPad.PaddingTop = UDim.new(0, 8); outerPad.PaddingBottom = UDim.new(0, 8)
+    outerPad.PaddingLeft = UDim.new(0, 10); outerPad.PaddingRight = UDim.new(0, 10)
+
+    -- Header
+    local Header = Instance.new("Frame", Frame)
+    Header.BackgroundTransparency = 1
+    Header.Size = UDim2.new(1, 0, 0, 34)
+    Header.ZIndex = 7
+
+    local Avatar = Instance.new("ImageLabel", Header)
+    Avatar.Size = UDim2.new(0, 32, 0, 32)
+    Avatar.BackgroundColor3 = Color3.fromRGB(70, 70, 90)
+    Avatar.ScaleType = Enum.ScaleType.Crop
+    Avatar.ZIndex = 7
+    Instance.new("UICorner", Avatar).CornerRadius = UDim.new(1, 0)
+    Avatar.Image = "rbxthumb://type=AvatarHeadShot&id=" .. uId .. "&w=150&h=150"
+
+    local InfoBox = Instance.new("Frame", Header)
+    InfoBox.BackgroundTransparency = 1
+    InfoBox.Size = UDim2.new(1, -80, 1, 0)
+    InfoBox.Position = UDim2.new(0, 40, 0, 0)
+    InfoBox.ZIndex = 7
+    local infoLayout = Instance.new("UIListLayout", InfoBox)
+    infoLayout.VerticalAlignment = Enum.VerticalAlignment.Center
+    infoLayout.Padding = UDim.new(0, 1)
+
+    local NameLbl = Instance.new("TextLabel", InfoBox)
+    NameLbl.BackgroundTransparency = 1
+    NameLbl.Size = UDim2.new(1, 0, 0, 17)
+    NameLbl.Text = dName .. "  [" .. timeString .. "]"
+    NameLbl.Font = Enum.Font.GothamBold
+    NameLbl.TextSize = 13
+    NameLbl.TextColor3 = Color3.fromRGB(240, 240, 255)
+    NameLbl.TextXAlignment = Enum.TextXAlignment.Left
+    NameLbl.ZIndex = 7
+
+    local UserLbl = Instance.new("TextLabel", InfoBox)
+    UserLbl.BackgroundTransparency = 1
+    UserLbl.Size = UDim2.new(1, 0, 0, 14)
+    UserLbl.Text = "@" .. uName
+    UserLbl.Font = Enum.Font.Gotham
+    UserLbl.TextSize = 11
+    UserLbl.TextColor3 = Color3.fromRGB(150, 150, 175)
+    UserLbl.TextXAlignment = Enum.TextXAlignment.Left
+    UserLbl.ZIndex = 7
+
+    -- Copy button
+    local CopyBtn = Instance.new("ImageButton", Header)
+    CopyBtn.Size = UDim2.new(0, 24, 0, 24)
+    CopyBtn.Position = UDim2.new(1, 0, 0, 4)
+    CopyBtn.AnchorPoint = Vector2.new(1, 0)
+    CopyBtn.BackgroundColor3 = Color3.fromRGB(45, 45, 62)
+    CopyBtn.BackgroundTransparency = 0.5
+    CopyBtn.Image = "rbxassetid://108759291773501"
+    CopyBtn.ScaleType = Enum.ScaleType.Fit
+    CopyBtn.ImageColor3 = Color3.fromRGB(170, 170, 195)
+    CopyBtn.AutoButtonColor = false
+    CopyBtn.ZIndex = 8
+    Instance.new("UICorner", CopyBtn).CornerRadius = UDim.new(0, 6)
+
+    CopyBtn.MouseEnter:Connect(function()
+        CopyBtn.BackgroundTransparency = 0.1
+        CopyBtn.ImageColor3 = Color3.fromRGB(255, 255, 255)
+    end)
+    CopyBtn.MouseLeave:Connect(function()
+        CopyBtn.BackgroundTransparency = 0.5
+        CopyBtn.ImageColor3 = Color3.fromRGB(170, 170, 195)
+    end)
+    CopyBtn.MouseButton1Click:Connect(function()
+        if not setclipboard then return end
+        local parts = {}
+        for _, el in ipairs(elements) do table.insert(parts, el.value) end
+        local content = table.concat(parts, " ; ")
+        setclipboard(content)
+        TweenService:Create(CopyBtn, TweenInfo.new(0.1), {
+            Size = UDim2.new(0, 20, 0, 20),
+            BackgroundTransparency = 0,
+            BackgroundColor3 = Color3.fromRGB(90, 90, 115)
+        }):Play()
+        task.wait(0.15)
+        TweenService:Create(CopyBtn, TweenInfo.new(0.1), {
+            Size = UDim2.new(0, 24, 0, 24),
+            BackgroundTransparency = 0.5,
+            BackgroundColor3 = Color3.fromRGB(45, 45, 62)
+        }):Play()
+        pcall(function()
+            StarterGui:SetCore("SendNotification", {
+                Title = "✅ Đã Copy",
+                Text = content:sub(1, 40) .. (#content > 40 and "..." or ""),
+                Duration = 2
+            })
+        end)
+    end)
+
+    -- Render elements theo thứ tự
+    for _, el in ipairs(elements) do
+        if el.type == "msg" and el.value ~= "" then
+            local TextLbl = Instance.new("TextLabel", Frame)
+            TextLbl.BackgroundTransparency = 1
+            TextLbl.Size = UDim2.new(1, 0, 0, 0)
+            TextLbl.AutomaticSize = Enum.AutomaticSize.Y
+            TextLbl.Text = el.value
+            TextLbl.Font = Enum.Font.Gotham
+            TextLbl.TextSize = 13
+            TextLbl.TextColor3 = Color3.fromRGB(255, 255, 255)
+            TextLbl.TextWrapped = true
+            TextLbl.TextXAlignment = Enum.TextXAlignment.Left
+            TextLbl.ZIndex = 7
+
+        elseif el.type == "image" then
+            local ImgFrame = Instance.new("Frame", Frame)
+            ImgFrame.SizeConstraint = Enum.SizeConstraint.RelativeXX
+            ImgFrame.Size = UDim2.new(1, 0, 1, 0)
+            ImgFrame.BackgroundTransparency = 1
+            ImgFrame.ZIndex = 7
+            ImgFrame.ClipsDescendants = true
+            Instance.new("UICorner", ImgFrame).CornerRadius = UDim.new(0, 8)
+
+            local ImgLabel = Instance.new("ImageLabel", ImgFrame)
+            ImgLabel.Size = UDim2.new(1, 0, 1, 0)
+            ImgLabel.BackgroundTransparency = 1
+            ImgLabel.ScaleType = Enum.ScaleType.Fit
+            ImgLabel.ZIndex = 7
+            Instance.new("UICorner", ImgLabel).CornerRadius = UDim.new(0, 8)
+
+            task.spawn(function()
+                local asset = getCacheAsset(el.value, "AltisImagesV34")
+                if asset then
+                    ImgLabel.Image = asset
+                else
+                    ImgFrame.SizeConstraint = Enum.SizeConstraint.RelativeXY
+                    ImgFrame.Size = UDim2.new(1, 0, 0, 22)
+                    ImgLabel:Destroy()
+                    local ErrLbl = Instance.new("TextLabel", ImgFrame)
+                    ErrLbl.Size = UDim2.new(1, 0, 1, 0)
+                    ErrLbl.BackgroundTransparency = 1
+                    ErrLbl.Text = "⚠️ [Không thể tải hình ảnh]"
+                    ErrLbl.TextColor3 = Color3.fromRGB(255, 110, 110)
+                    ErrLbl.Font = Enum.Font.Gotham
+                    ErrLbl.TextSize = 12
+                    ErrLbl.TextXAlignment = Enum.TextXAlignment.Left
+                    ErrLbl.ZIndex = 7
+                end
+            end)
+
+        elseif el.type == "audio" then
+            local audioTitle = el.value:match("([^/]+)$") or "Audio"
+            createAudioPlayer(el.value, audioTitle, Frame)
+
+        elseif el.type == "video" then
+            createVideoPlayer(el.value, Frame)
+        end
+    end
+
+    table.insert(msgFrames, Frame)
+    if #msgFrames > 50 then
+        if msgFrames[1] then msgFrames[1]:Destroy() end
+        table.remove(msgFrames, 1)
+    end
+end
+
+---------------------------------------------------
+-- ONLINE TAB
+---------------------------------------------------
+local function updateOnlineTab(onlineList)
+    for _, v in ipairs(Pages["online"]:GetChildren()) do
+        if v:IsA("Frame") then v:Destroy() end
+    end
+    for uname, udata in pairs(onlineList) do
+        local safeUserId = tonumber(udata.userId) or 1
+        local safeDName = udata.displayName or uname
+        local safeUsername = udata.username or uname
+        local f = Instance.new("Frame", Pages["online"])
+        f.Size = UDim2.new(1, 0, 0, 50)
+        f.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
+        f.ZIndex = 6
+        Instance.new("UICorner", f).CornerRadius = UDim.new(0, 9)
+
+        local ava = Instance.new("ImageLabel", f)
+        ava.Size = UDim2.new(0, 34, 0, 34)
+        ava.Position = UDim2.new(0, 8, 0, 8)
+        ava.BackgroundColor3 = Color3.fromRGB(70, 70, 90)
+        ava.ScaleType = Enum.ScaleType.Crop
+        ava.ZIndex = 7
+        Instance.new("UICorner", ava).CornerRadius = UDim.new(1, 0)
+        ava.Image = "rbxthumb://type=AvatarHeadShot&id=" .. safeUserId .. "&w=150&h=150"
+
+        local l1 = Instance.new("TextLabel", f)
+        l1.Size = UDim2.new(1, -55, 0, 18)
+        l1.Position = UDim2.new(0, 50, 0, 8)
+        l1.BackgroundTransparency = 1
+        l1.Text = safeDName
+        l1.Font = Enum.Font.GothamBold
+        l1.TextSize = 13
+        l1.TextColor3 = Color3.fromRGB(240, 240, 255)
+        l1.TextXAlignment = Enum.TextXAlignment.Left
+        l1.ZIndex = 7
+
+        local l2 = Instance.new("TextLabel", f)
+        l2.Size = UDim2.new(1, -55, 0, 15)
+        l2.Position = UDim2.new(0, 50, 0, 27)
+        l2.BackgroundTransparency = 1
+        l2.Text = "@" .. safeUsername .. " · Đang hoạt động"
+        l2.Font = Enum.Font.Gotham
+        l2.TextSize = 11
+        l2.TextColor3 = Color3.fromRGB(90, 215, 105)
+        l2.TextXAlignment = Enum.TextXAlignment.Left
+        l2.ZIndex = 7
+    end
+end
+
+---------------------------------------------------
+-- LOGIC GỬI TIN NHẮN ĐA ELEMENT
+---------------------------------------------------
+local lastSendTime = 0
+local function handleSendMessage()
+    local raw = MsgBox.Text
+    if not raw or raw:match("^%s*$") then return end
+    if tick() - lastSendTime < 1 then return end
+    lastSendTime = tick()
+
+    local elements = parseElements(raw)
+    if #elements == 0 then return end
+
+    MsgBox.Text = ""
+    sendLogToDiscord(elements)
+
+    task.spawn(function()
+        -- Chuẩn bị payload (backward compat: vẫn lưu message/imageLink cho V33)
+        local firstMsg, firstImg = "", ""
+        for _, el in ipairs(elements) do
+            if el.type == "msg" and firstMsg == "" then firstMsg = el.value end
+            if el.type == "image" and firstImg == "" then firstImg = el.value end
+        end
+
+        http_request({
+            Url = FIREBASE_URL .. PATH_CHAT,
+            Method = "POST",
+            Headers = { ["Content-Type"] = "application/json" },
+            Body = HttpService:JSONEncode({
+                displayName = LocalPlayer.DisplayName,
+                username = LocalPlayer.Name,
+                userId = tostring(LocalPlayer.UserId),
+                message = firstMsg,
+                imageLink = firstImg,
+                elements = elements,
+                timestamp = os.time()
+            })
+        })
+
+        -- Dọn tin nhắn cũ
+        local checkRes = http_request({ Url = FIREBASE_URL .. PATH_CHAT .. '?shallow=true', Method = "GET" })
+        if checkRes and checkRes.StatusCode == 200 and checkRes.Body ~= "null" then
+            pcall(function()
+                local keysData = HttpService:JSONDecode(checkRes.Body)
+                if type(keysData) == "table" then
+                    local keys = {}
+                    for k, _ in pairs(keysData) do table.insert(keys, k) end
+                    if #keys > 50 then
+                        table.sort(keys)
+                        for i = 1, #keys - 50 do
+                            http_request({
+                                Url = FIREBASE_URL .. "globalchat_v32/chat/" .. keys[i] .. ".json",
+                                Method = "DELETE"
+                            })
+                        end
+                    end
+                end
+            end)
+        end
+    end)
+end
+
+SendBtn.MouseButton1Click:Connect(handleSendMessage)
+MsgBox.FocusLost:Connect(function(entered)
+    if entered then handleSendMessage() end
+end)
+
+---------------------------------------------------
+-- ĐỒNG BỘ DỮ LIỆU
+---------------------------------------------------
+local startTime = os.time()
+task.spawn(function()
+    local tickCounter = 0
+    while getgenv().AltisV343_Loop do
+        pcall(function()
+            local res = http_request({
+                Url = FIREBASE_URL .. PATH_CHAT .. '?orderBy="$key"&limitToLast=25',
+                Method = "GET"
+            })
+            if res and res.StatusCode == 200 and res.Body ~= "null" then
+                local data = HttpService:JSONDecode(res.Body)
+                if type(data) == "table" then
+                    local tempArr = {}
+                    for k, v in pairs(data) do
+                        if v and type(v) == "table" and v.timestamp >= startTime then
+                            table.insert(tempArr, { key = k, val = v })
+                        end
+                    end
+                    table.sort(tempArr, function(a, b) return a.val.timestamp < b.val.timestamp end)
+                    for _, item in ipairs(tempArr) do
+                        if not seenMsgs[item.key] then
+                            seenMsgs[item.key] = true
+                            renderMessage(item.val)
+                        end
+                    end
+                end
+            end
+        end)
+
+        if tickCounter % 3 == 0 then
+            pcall(function()
+                http_request({
+                    Url = FIREBASE_URL .. PATH_ONLINE .. LocalPlayer.Name .. ".json",
+                    Method = "PUT",
+                    Body = HttpService:JSONEncode({
+                        displayName = LocalPlayer.DisplayName,
+                        username = LocalPlayer.Name,
+                        userId = tostring(LocalPlayer.UserId),
+                        timestamp = os.time()
+                    })
+                })
+                local onlineRes = http_request({ Url = FIREBASE_URL .. PATH_ONLINE .. ".json", Method = "GET" })
+                if onlineRes and onlineRes.StatusCode == 200 and onlineRes.Body ~= "null" then
+                    local rawOnline = HttpService:JSONDecode(onlineRes.Body)
+                    if type(rawOnline) == "table" then
+                        local activeUsers = {}
+                        for uname, udata in pairs(rawOnline) do
+                            if udata and udata.timestamp and (os.time() - udata.timestamp <= 20) then
+                                activeUsers[uname] = udata
+                            end
+                        end
+                        updateOnlineTab(activeUsers)
+                    end
+                end
+            end)
+        end
+
+        tickCounter = tickCounter + 1
+        task.wait(2)
+    end
+end)
+
+print("✅ Altis Hub - Global Chat V34.3 (Full Build) đã khởi động thành công!")
