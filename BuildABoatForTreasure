@@ -1,10 +1,14 @@
+
 --============================================================
 -- KHỞI TẠO BIẾN TOÀN CỤC & DỊCH VỤ
 --============================================================
 getgenv().farm = false 
 getgenv().instantRespawn = false 
+getgenv().bypassIsolation = false
+getgenv().autoJoinTeam = false
 
 local isFirstCycle = true 
+local selectedTeamToJoin = "white" -- Mặc định là team trắng
 
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
@@ -15,7 +19,7 @@ local dataFolder = player:WaitForChild("Data", 10)
 local goldObj = dataFolder and dataFolder:WaitForChild("Gold", 10)
 local initialGold = goldObj and goldObj.Value or 0
 local StartTime = os.clock()
-local FarmStartTime = 0 -- Biến lưu thời gian bắt đầu farm
+local FarmStartTime = 0 
 
 --============================================================
 -- THIẾT LẬP THÔNG SỐ FARM & HÀM PHỤ TRỢ
@@ -54,10 +58,8 @@ local function CreatePlatform(stage, x, y, z)
     end
 end
 
--- Hàm tìm Team trống
 local function GetEmptyTeam()
-    local teamList = {"white", "red", "blue", "yellow", "black", "green", "magenta"}
-    
+    local teamList = {"white", "red", "blue", "yellow", "black", "green", "magenta", "camo"}
     for _, teamName in ipairs(teamList) do
         local teamObj = Teams:FindFirstChild(teamName)
         if teamObj then
@@ -67,7 +69,6 @@ local function GetEmptyTeam()
             end
         end
     end
-    
     return nil 
 end
 
@@ -84,19 +85,28 @@ local Prefabs = BuildPrefabs()
 ReGui:Init({ Prefabs = Prefabs })
 
 --============================================================
--- GIAO DIỆN (WINDOW & ELEMENTS)
+-- GIAO DIỆN (TABSWINDOW & ELEMENTS)
 --============================================================
-local Window = ReGui:Window({
-    Title = "Altis Hub - Build A Boat For Treasure V1.01",
-    Size = UDim2.fromOffset(350, 250)
+local TabsWindow = ReGui:TabsWindow({
+    Title = "Altis Hub - Build A Boat For Treasure V1.02",
+    Size = UDim2.fromOffset(360, 320)
 }):Center()
 
-local Label1 = Window:Label({ Text = "Current Gold: " .. tostring(initialGold) })
-local Label2 = Window:Label({ Text = "Gold Earned: 0" })
-local Label3 = Window:Label({ Text = "Gold Per Hour: 0/H" })
-local Label4 = Window:Label({ Text = "Farm Time: 00:00:00" })
+--=============================
+-- TAB 1: FARM
+--=============================
+local FarmTab = TabsWindow:CreateTab({ Name = "Farm" })
 
-local Toggle1 = Window:Checkbox({
+FarmTab:Separator({ Text = "Statistics" })
+
+local Label1 = FarmTab:Label({ Text = "Current Gold: " .. tostring(initialGold) })
+local Label2 = FarmTab:Label({ Text = "Gold Earned: 0" })
+local Label3 = FarmTab:Label({ Text = "Gold Per Hour: 0/H" })
+local Label4 = FarmTab:Label({ Text = "Farm Time: 00:00:00" })
+
+FarmTab:Separator({ Text = "Farm Settings" })
+
+local Toggle1 = FarmTab:Checkbox({
     Label = "Bật Auto Farm",
     Value = getgenv().farm,
     Callback = function(_, Value)
@@ -109,7 +119,7 @@ local Toggle1 = Window:Checkbox({
     end
 })
 
-local Toggle2 = Window:Checkbox({
+local Toggle2 = FarmTab:Checkbox({
     Label = "Hồi Sinh Tức Thì (Đổi Team)",
     Value = getgenv().instantRespawn,
     Callback = function(_, Value)
@@ -117,13 +127,61 @@ local Toggle2 = Window:Checkbox({
     end
 })
 
+--=============================
+-- TAB 2: MISC
+--=============================
+local MiscTab = TabsWindow:CreateTab({ Name = "Misc" })
+
+MiscTab:Separator({ Text = "Zone Settings" })
+
+local ToggleBypass = MiscTab:Checkbox({
+    Label = "Bypass Isolation Mode",
+    Value = getgenv().bypassIsolation,
+    Callback = function(_, Value)
+        getgenv().bypassIsolation = Value
+    end
+})
+
+MiscTab:Separator({ Text = "Team Management" })
+
+local ComboTeam = MiscTab:Combo({
+    Label = "Choose Team",
+    Selected = 1,
+    Items = {
+        "white",
+        "black",
+        "camo",
+        "magenta",
+        "yellow",
+        "blue",
+        "red"
+    },
+    Callback = function(_, Value)
+        selectedTeamToJoin = Value
+    end
+})
+
+local ToggleAutoJoin = MiscTab:Checkbox({
+    Label = "Auto Join Team",
+    Value = getgenv().autoJoinTeam,
+    Callback = function(_, Value)
+        getgenv().autoJoinTeam = Value
+    end
+})
+
 --============================================================
--- CẬP NHẬT CHỈ SỐ UI MỖI GIÂY
+-- CẬP NHẬT CHỈ SỐ UI & MISC LOGIC MỖI GIÂY
 --============================================================
 task.spawn(function()
+    local zoneNames = {
+        "WhiteZone", "BlackZone", "CamoZone", "MagentaZone", 
+        "New YellerZone", "Really blueZone", "Really redZone"
+    }
+
     while true do
         task.wait(1)
         
+        -- 1. Cập nhật UI Vàng & Thời gian
         if goldObj then
             local currentGold = goldObj.Value
             local earnedGold = currentGold - initialGold
@@ -144,9 +202,41 @@ task.spawn(function()
             local hours = math.floor(elapsed / 3600)
             local minutes = math.floor((elapsed % 3600) / 60)
             local seconds = math.floor(elapsed % 60)
-            
             Label4.Text = string.format("Farm Time: %02d:%02d:%02d", hours, minutes, seconds)
         end
+        
+        -- 2. Xử lý Bypass Isolation
+        if getgenv().bypassIsolation then
+            for _, zoneName in ipairs(zoneNames) do
+                local zone = Workspace:FindFirstChild(zoneName)
+                if zone then
+                    local lock = zone:FindFirstChild("Lock")
+                    if lock then
+                        -- Dùng FindFirstChild để an toàn, nếu ko có thì k bị lỗi script
+                        local part = lock:FindFirstChild("Part")
+                        if part then
+                            part:Destroy()
+                        end
+                    end
+                end
+            end
+        end
+        
+        -- 3. Xử lý Auto Join Team
+        if getgenv().autoJoinTeam and selectedTeamToJoin then
+            local targetTeam = Teams:FindFirstChild(selectedTeamToJoin)
+            if targetTeam and player.Team ~= targetTeam then
+                local leader = targetTeam:FindFirstChild("TeamLeader")
+                -- Kiểm tra xem team đã có trưởng nhóm chưa
+                if not leader or leader.Value == nil or leader.Value == "" then
+                    local changeTeamEvent = Workspace:FindFirstChild("ChangeTeam")
+                    if changeTeamEvent then
+                        changeTeamEvent:FireServer(targetTeam)
+                    end
+                end
+            end
+        end
+        
     end
 end)
 
@@ -184,10 +274,9 @@ task.spawn(function()
                         task.wait(2)
                         isFirstCycle = false
                     else
-                        task.wait(7)
+                        task.wait(5)
                     end
                 else
-                    -- Các stage khác (2 đến 9): Đợi 2s
                     task.wait(2)
                 end
                 
