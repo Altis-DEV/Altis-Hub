@@ -2,7 +2,7 @@
 -- KHỞI TẠO BIẾN TOÀN CỤC & DỊCH VỤ
 --============================================================
 getgenv().farm = false 
-getgenv().instantRespawn = false -- Biến cho toggle Hồi Sinh Tức Thì
+getgenv().instantRespawn = false 
 
 local isFirstCycle = true 
 
@@ -15,6 +15,7 @@ local dataFolder = player:WaitForChild("Data", 10)
 local goldObj = dataFolder and dataFolder:WaitForChild("Gold", 10)
 local initialGold = goldObj and goldObj.Value or 0
 local StartTime = os.clock()
+local FarmStartTime = 0 -- Biến lưu thời gian bắt đầu farm
 
 --============================================================
 -- THIẾT LẬP THÔNG SỐ FARM & HÀM PHỤ TRỢ
@@ -61,14 +62,13 @@ local function GetEmptyTeam()
         local teamObj = Teams:FindFirstChild(teamName)
         if teamObj then
             local leaderValue = teamObj:FindFirstChild("TeamLeader")
-            -- Nếu không có value TeamLeader HOẶC có nhưng value bị nil/trống
             if not leaderValue or leaderValue.Value == nil or leaderValue.Value == "" then
-                return teamObj -- Trả về team trống đầu tiên tìm thấy
+                return teamObj 
             end
         end
     end
     
-    return nil -- Không có team nào trống
+    return nil 
 end
 
 --============================================================
@@ -87,13 +87,14 @@ ReGui:Init({ Prefabs = Prefabs })
 -- GIAO DIỆN (WINDOW & ELEMENTS)
 --============================================================
 local Window = ReGui:Window({
-    Title = "Altis Hub - Build A Boat For Treasure Auto Gold",
-    Size = UDim2.fromOffset(300, 230)
+    Title = "Altis Hub - Build A Boat For Treasure",
+    Size = UDim2.fromOffset(350, 250)
 }):Center()
 
 local Label1 = Window:Label({ Text = "Current Gold: " .. tostring(initialGold) })
 local Label2 = Window:Label({ Text = "Gold Earned: 0" })
 local Label3 = Window:Label({ Text = "Gold Per Hour: 0/H" })
+local Label4 = Window:Label({ Text = "Farm Time: 00:00:00" })
 
 local Toggle1 = Window:Checkbox({
     Label = "Bật Auto Farm",
@@ -102,6 +103,8 @@ local Toggle1 = Window:Checkbox({
         getgenv().farm = Value
         if Value then
             isFirstCycle = true 
+            FarmStartTime = os.clock() 
+            Label4.Text = "Farm Time: 00:00:00" 
         end
     end
 })
@@ -120,6 +123,7 @@ local Toggle2 = Window:Checkbox({
 task.spawn(function()
     while true do
         task.wait(1)
+        
         if goldObj then
             local currentGold = goldObj.Value
             local earnedGold = currentGold - initialGold
@@ -133,6 +137,15 @@ task.spawn(function()
             Label1.Text = "Current Gold: " .. tostring(currentGold)
             Label2.Text = "Gold Earned: " .. tostring(earnedGold)
             Label3.Text = "Gold Per Hour: " .. tostring(goldPerHour) .. "/H"
+        end
+        
+        if getgenv().farm then
+            local elapsed = os.clock() - FarmStartTime
+            local hours = math.floor(elapsed / 3600)
+            local minutes = math.floor((elapsed % 3600) / 60)
+            local seconds = math.floor(elapsed % 60)
+            
+            Label4.Text = string.format("Farm Time: %02d:%02d:%02d", hours, minutes, seconds)
         end
     end
 end)
@@ -151,45 +164,43 @@ task.spawn(function()
             
             if not (rootPart and humanoid) then continue end
 
-            -- Chỉ đợi 5 giây nếu không phải cycle đầu tiên
-            if not isFirstCycle then
-                for i = 1, 5 do
-                    if not getgenv().farm then break end
-                    task.wait(1)
-                end
-            end
-            
-            isFirstCycle = false
-            
-            if not getgenv().farm then continue end
-
-            -- Tiến trình 10 Stage
-            for stage = 1, 10 do
+            -- Tiến trình Farm từ Stage 1 đến Stage 9
+            for stage = 1, 9 do
                 if not getgenv().farm then break end
                 
                 local targetZ = startZ + ((stage - 1) * studOffset)
                 CreatePlatform(stage, startX, startY, targetZ)
                 
+                -- 1. DỊCH CHUYỂN
                 if rootPart and rootPart.Parent then
                     rootPart.CFrame = CFrame.new(startX, startY, targetZ)
                     rootPart.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
                     rootPart.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
                 end
+
+                -- 2. THỜI GIAN CHỜ VÀ CLAIM GOLD
+                if stage == 1 then
+                    if isFirstCycle then
+                        task.wait(2)
+                        isFirstCycle = false
+                    else
+                        task.wait(7)
+                    end
+                else
+                    -- Các stage khác (2 đến 9): Đợi 2s
+                    task.wait(2)
+                end
                 
-                task.wait(1)
                 if not getgenv().farm then break end
                 
+                -- 3. NHẬN VÀNG
                 ClaimGold()
-                
-                if stage < 10 then
-                    task.wait(1)
-                end
             end
             
             if not getgenv().farm then continue end
             
             --=========================================
-            -- XỬ LÝ HỒI SINH (SAU KHI XONG STAGE 10)
+            -- XỬ LÝ HỒI SINH (SAU KHI CLAIM STAGE 9)
             --=========================================
             local changedTeamSuccess = false
             
@@ -198,21 +209,18 @@ task.spawn(function()
                 if emptyTeam then
                     local changeTeamEvent = Workspace:FindFirstChild("ChangeTeam")
                     if changeTeamEvent then
-                        -- Bắn remote để chuyển sang team trống
                         changeTeamEvent:FireServer(emptyTeam)
                         changedTeamSuccess = true
                     end
                 end
             end
             
-            -- Fallback: Nếu không bật Hồi Sinh Tức Thì hoặc KHÔNG CÓ team nào trống
             if not changedTeamSuccess then
                 if humanoid then
                     humanoid.Health = 0 
                 end
             end
             
-            -- Đợi game tạo nhân vật mới (dù là do đổi team hay chết thì vẫn sẽ chạy lệnh này)
             player.CharacterAdded:Wait()
         end
     end
