@@ -87,7 +87,7 @@ ReGui:Init({ Prefabs = Prefabs })
 -- GIAO DIỆN (WINDOW & ELEMENTS)
 --============================================================
 local Window = ReGui:Window({
-    Title = "Altis Hub - Build A Boat For Treasure",
+    Title = "Altis Hub - Build A Boat For Treasure V1.01",
     Size = UDim2.fromOffset(350, 250)
 }):Center()
 
