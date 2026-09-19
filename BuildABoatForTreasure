@@ -1,4 +1,3 @@
-
 --============================================================
 -- KHỞI TẠO BIẾN TOÀN CỤC & DỊCH VỤ
 --============================================================
@@ -8,7 +7,8 @@ getgenv().bypassIsolation = false
 getgenv().autoJoinTeam = false
 
 local isFirstCycle = true 
-local selectedTeamToJoin = "white" -- Mặc định là team trắng
+local selectedTeamToJoin = "white"
+local buyAmount = 1 -- Biến lưu số lượng mua vật phẩm
 
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
@@ -16,8 +16,11 @@ local Teams = game:GetService("Teams")
 local player = Players.LocalPlayer
 
 local dataFolder = player:WaitForChild("Data", 10)
+
+-- Tiền Vàng (Gold)
 local goldObj = dataFolder and dataFolder:WaitForChild("Gold", 10)
 local initialGold = goldObj and goldObj.Value or 0
+
 local StartTime = os.clock()
 local FarmStartTime = 0 
 
@@ -88,8 +91,8 @@ ReGui:Init({ Prefabs = Prefabs })
 -- GIAO DIỆN (TABSWINDOW & ELEMENTS)
 --============================================================
 local TabsWindow = ReGui:TabsWindow({
-    Title = "Altis Hub - Build A Boat For Treasure V1.02",
-    Size = UDim2.fromOffset(360, 320)
+    Title = "Altis Hub - Build A Boat For Treasure",
+    Size = UDim2.fromOffset(360, 300)
 }):Center()
 
 --=============================
@@ -100,14 +103,14 @@ local FarmTab = TabsWindow:CreateTab({ Name = "Farm" })
 FarmTab:Separator({ Text = "Statistics" })
 
 local Label1 = FarmTab:Label({ Text = "Current Gold: " .. tostring(initialGold) })
-local Label2 = FarmTab:Label({ Text = "Gold Earned: 0" })
+local Label2 = FarmTab:Label({ Text = "Gold Gained: 0" })
 local Label3 = FarmTab:Label({ Text = "Gold Per Hour: 0/H" })
 local Label4 = FarmTab:Label({ Text = "Farm Time: 00:00:00" })
 
 FarmTab:Separator({ Text = "Farm Settings" })
 
 local Toggle1 = FarmTab:Checkbox({
-    Label = "Bật Auto Farm",
+    Label = "Auto Farm",
     Value = getgenv().farm,
     Callback = function(_, Value)
         getgenv().farm = Value
@@ -120,7 +123,7 @@ local Toggle1 = FarmTab:Checkbox({
 })
 
 local Toggle2 = FarmTab:Checkbox({
-    Label = "Hồi Sinh Tức Thì (Đổi Team)",
+    Label = "Instant Respawn",
     Value = getgenv().instantRespawn,
     Callback = function(_, Value)
         getgenv().instantRespawn = Value
@@ -169,6 +172,38 @@ local ToggleAutoJoin = MiscTab:Checkbox({
     end
 })
 
+MiscTab:Separator({ Text = "Shop (Buy Secret Items)" })
+
+MiscTab:SliderInt({
+    Label = "Amount",
+    Value = 1,
+    Minimum = 1,
+    Maximum = 100,
+    Callback = function(_, Value)
+        buyAmount = Value
+    end
+})
+
+MiscTab:Button({
+    Text = "Buy Pine Tree(80 Gold)",
+    Callback = function()
+        local Event = Workspace:FindFirstChild("ItemBoughtFromShop")
+        if Event then
+            Event:InvokeServer("PineTree", buyAmount)
+        end
+    end
+})
+
+MiscTab:Button({
+    Text = "Buy Dragon Harpoon(300 Robux)",
+    Callback = function()
+        local Event = Workspace:FindFirstChild("PromptRobuxEvent")
+        if Event then
+            Event:InvokeServer(1109792341, "Product")
+        end
+    end
+})
+
 --============================================================
 -- CẬP NHẬT CHỈ SỐ UI & MISC LOGIC MỖI GIÂY
 --============================================================
@@ -184,16 +219,16 @@ task.spawn(function()
         -- 1. Cập nhật UI Vàng & Thời gian
         if goldObj then
             local currentGold = goldObj.Value
-            local earnedGold = currentGold - initialGold
+            local gainedGold = currentGold - initialGold
             local runTime = os.clock() - StartTime
             
             local goldPerHour = 0
             if runTime > 0 then
-                goldPerHour = math.floor((earnedGold / runTime) * 3600)
+                goldPerHour = math.floor((gainedGold / runTime) * 3600)
             end
 
             Label1.Text = "Current Gold: " .. tostring(currentGold)
-            Label2.Text = "Gold Earned: " .. tostring(earnedGold)
+            Label2.Text = "Gold Gained: " .. tostring(gainedGold)
             Label3.Text = "Gold Per Hour: " .. tostring(goldPerHour) .. "/H"
         end
         
@@ -212,7 +247,6 @@ task.spawn(function()
                 if zone then
                     local lock = zone:FindFirstChild("Lock")
                     if lock then
-                        -- Dùng FindFirstChild để an toàn, nếu ko có thì k bị lỗi script
                         local part = lock:FindFirstChild("Part")
                         if part then
                             part:Destroy()
@@ -227,7 +261,6 @@ task.spawn(function()
             local targetTeam = Teams:FindFirstChild(selectedTeamToJoin)
             if targetTeam and player.Team ~= targetTeam then
                 local leader = targetTeam:FindFirstChild("TeamLeader")
-                -- Kiểm tra xem team đã có trưởng nhóm chưa
                 if not leader or leader.Value == nil or leader.Value == "" then
                     local changeTeamEvent = Workspace:FindFirstChild("ChangeTeam")
                     if changeTeamEvent then
@@ -248,48 +281,65 @@ task.spawn(function()
         task.wait(0.1) 
         
         if getgenv().farm then
-            local character = player.Character or player.CharacterAdded:Wait()
-            local rootPart = character:WaitForChild("HumanoidRootPart", 5)
-            local humanoid = character:WaitForChild("Humanoid", 5)
+            local character = player.Character
+            if not character or not character.Parent then continue end
             
-            if not (rootPart and humanoid) then continue end
+            local humanoid = character:FindFirstChild("Humanoid")
+            local rootPart = character:FindFirstChild("HumanoidRootPart")
+            if not humanoid or humanoid.Health <= 0 or not rootPart then continue end
+
+            local diedMidway = false
 
             -- Tiến trình Farm từ Stage 1 đến Stage 9
             for stage = 1, 9 do
                 if not getgenv().farm then break end
                 
+                -- Kiểm tra liên tục: Nếu nhân vật chết hoặc mất giữa chừng thì ngắt loop
+                if not character or not character.Parent or humanoid.Health <= 0 then
+                    diedMidway = true
+                    break
+                end
+                
                 local targetZ = startZ + ((stage - 1) * studOffset)
                 CreatePlatform(stage, startX, startY, targetZ)
                 
-                -- 1. DỊCH CHUYỂN
-                if rootPart and rootPart.Parent then
-                    rootPart.CFrame = CFrame.new(startX, startY, targetZ)
-                    rootPart.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
-                    rootPart.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
-                end
+                -- DỊCH CHUYỂN
+                rootPart.CFrame = CFrame.new(startX, startY, targetZ)
+                rootPart.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+                rootPart.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
 
-                -- 2. THỜI GIAN CHỜ VÀ CLAIM GOLD
+                -- THỜI GIAN CHỜ (Bỏ farm gold block, chỉ đợi thời gian bình thường)
                 if stage == 1 then
                     if isFirstCycle then
-                        task.wait(2)
+                        task.wait(2) -- Lần đầu chờ 2 giây
                         isFirstCycle = false
                     else
-                        task.wait(5)
+                        task.wait(7) -- Các lần sau chờ 7 giây
                     end
                 else
+                    -- Stage 2 đến 9
                     task.wait(2)
                 end
                 
-                if not getgenv().farm then break end
+                -- Check lại trước khi Claim Gold
+                if not character or not character.Parent or humanoid.Health <= 0 or not getgenv().farm then 
+                    diedMidway = true
+                    break 
+                end
                 
-                -- 3. NHẬN VÀNG
                 ClaimGold()
             end
             
             if not getgenv().farm then continue end
             
+            -- Nếu chết giữa chừng thì chỉ cần bỏ qua lần lặp này, vòng lặp while sẽ tự lấy character mới
+            if diedMidway then
+                task.wait(1)
+                continue
+            end
+            
             --=========================================
-            -- XỬ LÝ HỒI SINH (SAU KHI CLAIM STAGE 9)
+            -- XỬ LÝ HỒI SINH (SAU KHI CLAIM STAGE 9 HOÀN TẤT)
             --=========================================
             local changedTeamSuccess = false
             
@@ -305,12 +355,13 @@ task.spawn(function()
             end
             
             if not changedTeamSuccess then
-                if humanoid then
+                if humanoid and humanoid.Health > 0 then
                     humanoid.Health = 0 
                 end
             end
             
-            player.CharacterAdded:Wait()
+            -- Chờ một chút trước khi tìm character mới
+            task.wait(1.5)
         end
     end
 end)
