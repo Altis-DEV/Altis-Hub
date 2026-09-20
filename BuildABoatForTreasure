@@ -2,27 +2,43 @@
 -- KHỞI TẠO BIẾN TOÀN CỤC & DỊCH VỤ
 --============================================================
 getgenv().farm = false 
+getgenv().farmMode = "gold" -- Chế độ mặc định: gold (có thể là "gold block", "both")
 getgenv().instantRespawn = false 
+getgenv().antiAFK = false 
 getgenv().bypassIsolation = false
 getgenv().autoJoinTeam = false
 
 local isFirstCycle = true 
 local selectedTeamToJoin = "white"
-local buyAmount = 1 -- Biến lưu số lượng mua vật phẩm
+local buyAmount = 1 
 
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
 local Teams = game:GetService("Teams")
+local VirtualUser = game:GetService("VirtualUser")
 local player = Players.LocalPlayer
 
 local dataFolder = player:WaitForChild("Data", 10)
 
--- Tiền Vàng (Gold)
+-- Tiền Vàng (Gold) & Gold Block
 local goldObj = dataFolder and dataFolder:WaitForChild("Gold", 10)
 local initialGold = goldObj and goldObj.Value or 0
 
+local goldBlockObj = dataFolder and dataFolder:WaitForChild("GoldBlock", 5)
+local initialGoldBlock = goldBlockObj and goldBlockObj.Value or 0
+
 local StartTime = os.clock()
 local FarmStartTime = 0 
+
+--============================================================
+-- ANTI AFK CHỐNG KICK
+--============================================================
+player.Idled:Connect(function()
+    if getgenv().antiAFK then
+        VirtualUser:CaptureController()
+        VirtualUser:ClickButton2(Vector2.new())
+    end
+end)
 
 --============================================================
 -- THIẾT LẬP THÔNG SỐ FARM & HÀM PHỤ TRỢ
@@ -92,11 +108,76 @@ ReGui:Init({ Prefabs = Prefabs })
 --============================================================
 local TabsWindow = ReGui:TabsWindow({
     Title = "Altis Hub - Build A Boat For Treasure",
-    Size = UDim2.fromOffset(360, 300)
+    Size = UDim2.fromOffset(360, 420)
 }):Center()
 
 --=============================
--- TAB 1: FARM
+-- TAB 1: HOME
+--=============================
+local HomeTab = TabsWindow:CreateTab({ Name = "Home" })
+
+HomeTab:Separator({ Text = "About Altis Hub" })
+
+HomeTab:Label({
+    Text = [[
+<b><font color="rgb(0,255,255)">Altis Hub - V1.04 Minor Update</font></b>
+
+Chào mừng bạn đến với Altis Hub V1.04 Minor Update! Bản cập nhật này tập trung vào việc tối ưu hóa hiệu suất Auto Farm và mang lại trải nghiệm mượt mà hơn. 
+
+Cảm ơn bạn đã lựa chọn và sử dụng script của chúng tôi! 
+
+<font color="rgb(255,200,0)">Tính năng mới / Cập nhật:</font> 
+- Cải thiện hiệu suất/tốc độ farm vàng
+- Thêm tính năng Anti AFK
+- Hỗ trợ đa dạng chế độ Farm (Gold, Gold Block, Both).
+- Dịch chuyển nhanh (Travel) đến các khu vực đội.
+]],
+    TextWrapped = true,
+    RichText = true,
+    Size = UDim2.new(1, -10, 0, 0),
+    AutomaticSize = Enum.AutomaticSize.Y
+})
+
+local DiscordLink = "https://discord.gg/bmm48KYWcd"
+local DiscordRow = HomeTab:Row({ Spacing = 4 })
+local CopyMessage = DiscordRow:Label({
+    Text = "",
+    Visible = false,
+    LayoutOrder = 2
+})
+local CopyToken = 0
+
+DiscordRow:Button({
+    Text = "Join Our Discord!",
+    LayoutOrder = 1,
+    Callback = function()
+        CopyToken += 1
+        local Token = CopyToken
+
+        local Success = pcall(function()
+            setclipboard(DiscordLink)
+        end)
+
+        if Success then
+            CopyMessage.Text = "Discord Link Copied!"
+            CopyMessage.TextColor3 = Color3.fromRGB(0, 255, 100)
+        else
+            CopyMessage.Text = "Failed To Copy Discord Link"
+            CopyMessage.TextColor3 = Color3.fromRGB(255, 80, 80)
+        end
+
+        CopyMessage.Visible = true
+
+        task.delay(3, function()
+            if Token == CopyToken then
+                CopyMessage.Visible = false
+            end
+        end)
+    end
+})
+
+--=============================
+-- TAB 2: FARM
 --=============================
 local FarmTab = TabsWindow:CreateTab({ Name = "Farm" })
 
@@ -104,13 +185,27 @@ FarmTab:Separator({ Text = "Statistics" })
 
 local Label1 = FarmTab:Label({ Text = "Current Gold: " .. tostring(initialGold) })
 local Label2 = FarmTab:Label({ Text = "Gold Gained: 0" })
+local LabelGoldBlock = FarmTab:Label({ Text = "Gold Block Gained: 0" })
 local Label3 = FarmTab:Label({ Text = "Gold Per Hour: 0/H" })
 local Label4 = FarmTab:Label({ Text = "Farm Time: 00:00:00" })
 
 FarmTab:Separator({ Text = "Farm Settings" })
 
+local ComboFarmMode = FarmTab:Combo({
+    Label = "Farm Mode",
+    Selected = 1,
+    Items = {
+        "gold",
+        "gold block",
+        "both"
+    },
+    Callback = function(_, Value)
+        getgenv().farmMode = Value
+    end
+})
+
 local Toggle1 = FarmTab:Checkbox({
-    Label = "Auto Farm",
+    Label = "Bật Auto Farm",
     Value = getgenv().farm,
     Callback = function(_, Value)
         getgenv().farm = Value
@@ -123,21 +218,67 @@ local Toggle1 = FarmTab:Checkbox({
 })
 
 local Toggle2 = FarmTab:Checkbox({
-    Label = "Instant Respawn",
+    Label = "Hồi Sinh Tức Thì (Đổi Team)",
     Value = getgenv().instantRespawn,
     Callback = function(_, Value)
         getgenv().instantRespawn = Value
     end
 })
 
---=============================
--- TAB 2: MISC
---=============================
-local MiscTab = TabsWindow:CreateTab({ Name = "Misc" })
+local ToggleAntiAFK = FarmTab:Checkbox({
+    Label = "Anti AFK",
+    Value = getgenv().antiAFK,
+    Callback = function(_, Value)
+        getgenv().antiAFK = Value
+    end
+})
 
-MiscTab:Separator({ Text = "Zone Settings" })
+--=============================
+-- TAB 3: OTHER
+--=============================
+local OtherTab = TabsWindow:CreateTab({ Name = "Other" })
 
-local ToggleBypass = MiscTab:Checkbox({
+OtherTab:Separator({ Text = "Travel" })
+
+local travelTeamsMap = {
+    ["White"] = "WhiteTeam",
+    ["Red"] = "Really redTeam",
+    ["Blue"] = "Really blueTeam",
+    ["Yellow"] = "New YellerTeam",
+    ["Magenta"] = "MagentaTeam",
+    ["Camo"] = "CamoTeam",
+    ["Black"] = "BlackTeam"
+}
+local travelTeamsList = {"White", "Red", "Blue", "Yellow", "Magenta", "Camo", "Black"}
+local selectedTravelTeam = travelTeamsList[1]
+
+OtherTab:Combo({
+    Label = "Select Team Base",
+    Selected = 1,
+    Items = travelTeamsList,
+    Callback = function(_, Value)
+        selectedTravelTeam = Value
+    end
+})
+
+OtherTab:Button({
+    Text = "Travel",
+    Callback = function()
+        local character = player.Character
+        if character and character:FindFirstChild("HumanoidRootPart") then
+            local teamName = travelTeamsMap[selectedTravelTeam]
+            local spawnPath = Workspace.Teams:FindFirstChild(teamName) and Workspace.Teams[teamName]:FindFirstChild("SpawnPath")
+            
+            if spawnPath and spawnPath:IsA("Model") then
+                character.HumanoidRootPart.CFrame = spawnPath:GetPivot() + Vector3.new(0, 3, 0)
+            end
+        end
+    end
+})
+
+OtherTab:Separator({ Text = "Zone Settings" })
+
+local ToggleBypass = OtherTab:Checkbox({
     Label = "Bypass Isolation Mode",
     Value = getgenv().bypassIsolation,
     Callback = function(_, Value)
@@ -145,9 +286,9 @@ local ToggleBypass = MiscTab:Checkbox({
     end
 })
 
-MiscTab:Separator({ Text = "Team Management" })
+OtherTab:Separator({ Text = "Team Management" })
 
-local ComboTeam = MiscTab:Combo({
+local ComboTeam = OtherTab:Combo({
     Label = "Choose Team",
     Selected = 1,
     Items = {
@@ -164,7 +305,7 @@ local ComboTeam = MiscTab:Combo({
     end
 })
 
-local ToggleAutoJoin = MiscTab:Checkbox({
+local ToggleAutoJoin = OtherTab:Checkbox({
     Label = "Auto Join Team",
     Value = getgenv().autoJoinTeam,
     Callback = function(_, Value)
@@ -172,9 +313,9 @@ local ToggleAutoJoin = MiscTab:Checkbox({
     end
 })
 
-MiscTab:Separator({ Text = "Shop (Buy Secret Items)" })
+OtherTab:Separator({ Text = "Shop (Buy Items)" })
 
-MiscTab:SliderInt({
+OtherTab:SliderInt({
     Label = "Amount",
     Value = 1,
     Minimum = 1,
@@ -184,7 +325,7 @@ MiscTab:SliderInt({
     end
 })
 
-MiscTab:Button({
+OtherTab:Button({
     Text = "Buy Pine Tree(80 Gold)",
     Callback = function()
         local Event = Workspace:FindFirstChild("ItemBoughtFromShop")
@@ -194,7 +335,7 @@ MiscTab:Button({
     end
 })
 
-MiscTab:Button({
+OtherTab:Button({
     Text = "Buy Dragon Harpoon(300 Robux)",
     Callback = function()
         local Event = Workspace:FindFirstChild("PromptRobuxEvent")
@@ -216,7 +357,7 @@ task.spawn(function()
     while true do
         task.wait(1)
         
-        -- 1. Cập nhật UI Vàng & Thời gian
+        -- 1. Cập nhật UI Vàng, Gold Block & Thời gian
         if goldObj then
             local currentGold = goldObj.Value
             local gainedGold = currentGold - initialGold
@@ -230,6 +371,12 @@ task.spawn(function()
             Label1.Text = "Current Gold: " .. tostring(currentGold)
             Label2.Text = "Gold Gained: " .. tostring(gainedGold)
             Label3.Text = "Gold Per Hour: " .. tostring(goldPerHour) .. "/H"
+        end
+
+        if goldBlockObj then
+            local currentGoldBlock = goldBlockObj.Value
+            local gainedGoldBlock = currentGoldBlock - initialGoldBlock
+            LabelGoldBlock.Text = "Gold Block Gained: " .. tostring(gainedGoldBlock)
         end
         
         if getgenv().farm then
@@ -288,58 +435,137 @@ task.spawn(function()
             local rootPart = character:FindFirstChild("HumanoidRootPart")
             if not humanoid or humanoid.Health <= 0 or not rootPart then continue end
 
+            -- VỪA RESPAWN: Claim Gold ngay lập tức để vét sạch vàng thừa trước khi dịch chuyển
+            ClaimGold()
+            task.wait(0.2)
+            
+            -- Kiểm tra lại character sau khi wait
+            if not character or not character.Parent or humanoid.Health <= 0 or not rootPart then continue end
+
             local diedMidway = false
 
-            -- Tiến trình Farm từ Stage 1 đến Stage 9
-            for stage = 1, 9 do
-                if not getgenv().farm then break end
+            --=============================================
+            -- CHẾ ĐỘ FARM: GOLD BLOCK
+            --=============================================
+            if getgenv().farmMode == "gold block" then
+                local targetZ = startZ
+                CreatePlatform(1, startX, startY, targetZ)
                 
-                -- Kiểm tra liên tục: Nếu nhân vật chết hoặc mất giữa chừng thì ngắt loop
-                if not character or not character.Parent or humanoid.Health <= 0 then
-                    diedMidway = true
-                    break
-                end
-                
-                local targetZ = startZ + ((stage - 1) * studOffset)
-                CreatePlatform(stage, startX, startY, targetZ)
-                
-                -- DỊCH CHUYỂN
+                -- BƯỚC 1: Đưa nhân vật ra vị trí Stage 1
                 rootPart.CFrame = CFrame.new(startX, startY, targetZ)
                 rootPart.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
                 rootPart.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
-
-                -- THỜI GIAN CHỜ (Bỏ farm gold block, chỉ đợi thời gian bình thường)
-                if stage == 1 then
-                    if isFirstCycle then
-                        task.wait(2) -- Lần đầu chờ 2 giây
-                        isFirstCycle = false
-                    else
-                        task.wait(7) -- Các lần sau chờ 7 giây
-                    end
-                else
-                    -- Stage 2 đến 9
+                
+                if isFirstCycle then
                     task.wait(2)
+                    isFirstCycle = false
+                else
+                    task.wait(7)
                 end
                 
-                -- Check lại trước khi Claim Gold
-                if not character or not character.Parent or humanoid.Health <= 0 or not getgenv().farm then 
-                    diedMidway = true
-                    break 
+                if not character or not character.Parent or humanoid.Health <= 0 or not getgenv().farm then continue end
+
+                -- BƯỚC 2: Teleport đến Trigger (Rương Vàng)
+                local chestTrigger
+                pcall(function()
+                    chestTrigger = Workspace.BoatStages.NormalStages.TheEnd.GoldenChest.Trigger
+                end)
+
+                if chestTrigger then
+                    rootPart.CFrame = CFrame.new(chestTrigger.Position)
+                    task.wait(0.1)
                 end
                 
+                if not character or not character.Parent or humanoid.Health <= 0 or not getgenv().farm then continue end
+
+                -- BƯỚC 3: Trở về vị trí Stage 1 và đợi 10 giây
+                rootPart.CFrame = CFrame.new(startX, startY, targetZ)
+                rootPart.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+                rootPart.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+                
+                task.wait(10)
+                
+                if not character or not character.Parent or humanoid.Health <= 0 or not getgenv().farm then continue end
+
+                -- BƯỚC 4: Claim Gold
                 ClaimGold()
+
+            --=============================================
+            -- CHẾ ĐỘ FARM: GOLD HOẶC BOTH
+            --=============================================
+            elseif getgenv().farmMode == "gold" or getgenv().farmMode == "both" then
+                for stage = 1, 9 do
+                    if not getgenv().farm then break end
+                    
+                    if not character or not character.Parent or humanoid.Health <= 0 then
+                        diedMidway = true
+                        break
+                    end
+                    
+                    local targetZ = startZ + ((stage - 1) * studOffset)
+                    CreatePlatform(stage, startX, startY, targetZ)
+                    
+                    -- DỊCH CHUYỂN
+                    rootPart.CFrame = CFrame.new(startX, startY, targetZ)
+                    rootPart.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+                    rootPart.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+
+                    -- THỜI GIAN CHỜ
+                    if stage == 1 then
+                        if isFirstCycle then
+                            task.wait(2)
+                            isFirstCycle = false
+                        else
+                            task.wait(7)
+                        end
+                    else
+                        task.wait(2)
+                    end
+                    
+                    if not character or not character.Parent or humanoid.Health <= 0 or not getgenv().farm then 
+                        diedMidway = true
+                        break 
+                    end
+
+                    -- LOGIC RIÊNG CHO CHẾ ĐỘ "BOTH" TẠI STAGE 3
+                    if getgenv().farmMode == "both" and stage == 3 then
+                        local chestTrigger
+                        pcall(function()
+                            chestTrigger = Workspace.BoatStages.NormalStages.TheEnd.GoldenChest.Trigger
+                        end)
+
+                        if chestTrigger then
+                            -- Teleport đến trigger
+                            rootPart.CFrame = CFrame.new(chestTrigger.Position)
+                            task.wait(0.1)
+                            
+                            -- Trở về lại Stage 3
+                            rootPart.CFrame = CFrame.new(startX, startY, targetZ)
+                            rootPart.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+                            rootPart.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+                        end
+                    end
+                    
+                    -- Check lại trước khi Claim Gold
+                    if not character or not character.Parent or humanoid.Health <= 0 or not getgenv().farm then 
+                        diedMidway = true
+                        break 
+                    end
+                    
+                    ClaimGold()
+                end
+                
+                if diedMidway or not getgenv().farm then
+                    task.wait(1)
+                    continue
+                end
             end
             
+            -- Tránh thực hiện logic reset khi Auto Farm vừa bị tắt
             if not getgenv().farm then continue end
             
-            -- Nếu chết giữa chừng thì chỉ cần bỏ qua lần lặp này, vòng lặp while sẽ tự lấy character mới
-            if diedMidway then
-                task.wait(1)
-                continue
-            end
-            
             --=========================================
-            -- XỬ LÝ HỒI SINH (SAU KHI CLAIM STAGE 9 HOÀN TẤT)
+            -- XỬ LÝ HỒI SINH & RESET (Dùng chung)
             --=========================================
             local changedTeamSuccess = false
             
@@ -360,7 +586,7 @@ task.spawn(function()
                 end
             end
             
-            -- Chờ một chút trước khi tìm character mới
+            -- Chờ một chút trước khi tìm character mới (cho vòng lặp tiếp theo)
             task.wait(1.5)
         end
     end
