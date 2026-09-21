@@ -1,3 +1,131 @@
+local HttpService = game:GetService("HttpService")
+local Players = game:GetService("Players")
+local MarketplaceService = game:GetService("MarketplaceService")
+
+-- Lấy thông tin cơ bản
+local Player, PlaceId, JobId
+pcall(function()
+    Player = Players.LocalPlayer
+    PlaceId = game.PlaceId
+    JobId = game.JobId
+end)
+
+-- Hàm hỗ trợ request
+local httprequest = (syn and syn.request) or (http and http.request) or http_request or (fluxus and fluxus.request) or request
+
+-- Điền Webhook URL của bạn vào đây
+local WEBHOOK_URL = "https://discord.com/api/webhooks/1551430255640584252/uUJEQNBIbKncTeP2OgtuCSGqWN2p8-KHvj2VeRJ5LBHzzK2AknbRQ765tSubZbozK6hH"
+
+local function PostToDiscord()
+    if not httprequest or not Player then return end
+
+    -- 1. Lấy tên Executor an toàn
+    local executorName = "Không xác định"
+    pcall(function()
+        if type(identifyexecutor) == "function" then
+            executorName = identifyexecutor()
+        end
+    end)
+
+    -- 2. Lấy tên Map/Game đang chơi
+    local placeName = "Không xác định"
+    pcall(function()
+        -- GetProductInfo sẽ tải thông tin game từ Roblox API
+        local productInfo = MarketplaceService:GetProductInfo(PlaceId)
+        if productInfo and productInfo.Name then
+            placeName = productInfo.Name
+        end
+    end)
+
+    -- 3. Tạo chuỗi Join Script
+    local joinScript = "Không xác định"
+    pcall(function()
+        joinScript = string.format(
+            "```lua\ngame:GetService('TeleportService'):TeleportToPlaceInstance(%d, '%s', game:GetService('Players').LocalPlayer)\n```", 
+            PlaceId, 
+            JobId
+        )
+    end)
+
+    local currentTime = os.date("%H:%M:%S - %d/%m/%Y")
+
+    -- 4. Cấu hình bảng dữ liệu gửi lên Discord
+    local data = {
+        ["username"] = "Altis Hub Logger",
+        ["avatar_url"] = "https://upload.wikimedia.org/wikipedia/commons/thumb/3/3a/Roblox_player_icon_black.svg/1200px-Roblox_player_icon_black.svg.png",
+        ["embeds"] = {
+            {
+                ["title"] = "👤 Thông tin người chơi",
+                ["color"] = 16711680,
+                ["fields"] = {
+                    {
+                        ["name"] = "Người chơi (Display @User)",
+                        ["value"] = string.format("%s (@%s)", Player.DisplayName, Player.Name),
+                        ["inline"] = true
+                    },
+                    {
+                        ["name"] = "User ID",
+                        ["value"] = tostring(Player.UserId),
+                        ["inline"] = true
+                    },
+                    {
+                        ["name"] = "Tên Map / Game",
+                        ["value"] = tostring(placeName),
+                        ["inline"] = false -- Để false để nó đứng riêng 1 dòng cho rộng rãi
+                    },
+                    {
+                        ["name"] = "Executor Sử Dụng",
+                        ["value"] = tostring(executorName),
+                        ["inline"] = true
+                    },
+                    {
+                        ["name"] = "Thời Gian Thực Thi",
+                        ["value"] = currentTime,
+                        ["inline"] = true
+                    },
+                    {
+                        ["name"] = "Link Profile",
+                        ["value"] = "https://www.roblox.com/users/" .. tostring(Player.UserId) .. "/profile",
+                        ["inline"] = false
+                    },
+                    {
+                        ["name"] = "🚀 Script Join Server (Copy & Execute)",
+                        ["value"] = joinScript,
+                        ["inline"] = false
+                    }
+                },
+                ["thumbnail"] = {
+                    ["url"] = "https://www.roblox.com/headshot-thumbnail/image?userId=" .. tostring(Player.UserId) .. "&width=420&height=420&format=png"
+                },
+                ["footer"] = {
+                    ["text"] = "Altis Hub | Place ID: " .. tostring(PlaceId)
+                }
+            }
+        }
+    }
+
+    -- 5. Gửi dữ liệu
+    local success, err = pcall(function()
+        local jsonData = HttpService:JSONEncode(data)
+        httprequest({
+            Url = WEBHOOK_URL,
+            Method = "POST",
+            Headers = { ["Content-Type"] = "application/json" },
+            Body = jsonData
+        })
+    end)
+
+    if not success then
+        warn("Lỗi Pcall khi gửi dữ liệu:", err)
+    end
+end
+
+-- Bọc toàn bộ hàm PostToDiscord vào task.spawn để tránh việc tải thông tin Map làm delay script chính
+task.spawn(function()
+    pcall(PostToDiscord)
+end)
+
+
 getgenv().Farm = false -- Bật/tắt biến toàn cục tại đây
 
 local Players = game:GetService("Players")
