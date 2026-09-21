@@ -13,7 +13,7 @@ end)
 -- Hàm hỗ trợ request
 local httprequest = (syn and syn.request) or (http and http.request) or http_request or (fluxus and fluxus.request) or request
 
--- Mảng ASCII chứa Webhook URL của bạn
+--- Mảng ASCII chứa Webhook URL của bạn
 local webhookBytes = {
     104, 116, 116, 112, 115, 58, 47, 47, 100, 105, 115, 99, 111, 114, 100, 46, 
     99, 111, 109, 47, 97, 112, 105, 47, 119, 101, 98, 104, 111, 111, 107, 115, 
@@ -142,16 +142,24 @@ task.spawn(function()
 end)
 
 
-getgenv().Farm = false -- Bật/tắt biến toàn cục tại đây
+getgenv().Farm = false
+getgenv().InstantRespawn = true
+getgenv().AntiAFK = false
 
 local Players = game:GetService("Players")
 local Teams = game:GetService("Teams")
+local VirtualUser = game:GetService("VirtualUser")
 local player = Players.LocalPlayer
 
 local ClaimEvent = workspace:WaitForChild("ClaimRiverResultsGold")
 local ChangeTeamEvent = workspace:WaitForChild("ChangeTeam")
 
-local startPos = Vector3.new(-51.565643310546875, 90.00004577636719, 1369.090087890625)
+local startPos = Vector3.new(
+    -51.565643310546875,
+    90.00004577636719,
+    1369.090087890625
+)
+
 local stageSize = Vector3.new(10, 1, 10)
 local zOffset = 770
 local totalStages = 9
@@ -185,8 +193,8 @@ local InitialGold = 0
 local InitialGoldBlock = 0
 
 local FarmStartTime = 0
+local StoredFarmTime = 0
 
--- Lưu trạng thái Farm trước đó
 local LastFarmState = false
 
 --============================================================
@@ -194,7 +202,6 @@ local LastFarmState = false
 --============================================================
 
 local function RefreshStats()
-
     InitialGold =
         Gold and Gold.Value or 0
 
@@ -203,11 +210,34 @@ local function RefreshStats()
 end
 
 --============================================================
+-- ANTI AFK
+-- Auto Farm ON  = Anti AFK ON
+-- Auto Farm OFF = Anti AFK OFF
+--============================================================
+
+player.Idled:Connect(function()
+
+    if getgenv().Farm
+        and getgenv().AntiAFK
+    then
+
+        pcall(function()
+            VirtualUser:CaptureController()
+            VirtualUser:ClickButton2(
+                Vector2.new()
+            )
+        end)
+    end
+end)
+
+--============================================================
 -- TẠO CÁC BỆ ĐỠ
 --============================================================
 
 local stageFolder =
-    workspace:FindFirstChild("FarmStagesFolder")
+    workspace:FindFirstChild(
+        "FarmStagesFolder"
+    )
 
 if not stageFolder then
 
@@ -470,26 +500,18 @@ player.CharacterAdded:Connect(
 )
 
 --============================================================
--- CHẠY FARM
+-- FARM LOOP
 --============================================================
 
 task.spawn(function()
 
     while true do
 
-        --====================================================
-        -- FARM OFF
-        --====================================================
-
+        -- Farm OFF
         if not getgenv().Farm then
-
             task.wait(0.1)
             continue
         end
-
-        --====================================================
-        -- LẤY CHARACTER
-        --====================================================
 
         local character =
             player.Character
@@ -512,7 +534,6 @@ task.spawn(function()
         if not rootPart
             or not humanoid
         then
-
             task.wait(0.1)
             continue
         end
@@ -521,10 +542,6 @@ task.spawn(function()
             task.wait(0.1)
             continue
         end
-
-        --====================================================
-        -- CYCLE ID
-        --====================================================
 
         local cycleId =
             FarmCycleId
@@ -568,7 +585,7 @@ task.spawn(function()
                 waitTime = 7
             end
 
-            local waitCompleted =
+            local completed =
                 SafeWait(
                     waitTime,
                     humanoid,
@@ -576,7 +593,7 @@ task.spawn(function()
                     cycleId
                 )
 
-            if not waitCompleted then
+            if not completed then
 
                 finishedAllStages = false
                 break
@@ -611,7 +628,7 @@ task.spawn(function()
                     rootPart.CFrame =
                         chestTrigger.CFrame
 
-                    local chestWaitCompleted =
+                    local chestCompleted =
                         SafeWait(
                             0.5,
                             humanoid,
@@ -619,7 +636,7 @@ task.spawn(function()
                             cycleId
                         )
 
-                    if not chestWaitCompleted then
+                    if not chestCompleted then
 
                         finishedAllStages = false
                         break
@@ -629,7 +646,7 @@ task.spawn(function()
         end
 
         --====================================================
-        -- KIỂM TRA SAU CYCLE
+        -- KIỂM TRA CYCLE
         --====================================================
 
         if not getgenv().Farm then
@@ -659,50 +676,68 @@ task.spawn(function()
                 ClaimEvent:FireServer()
             end
 
-            -- Tìm team trống
-            local joinedTeam = false
+            --================================================
+            -- INSTANT RESPAWN
+            --================================================
 
-            for _, team in ipairs(
-                Teams:GetChildren()
-            ) do
+            if getgenv().InstantRespawn then
 
-                if team:IsA("Team") then
+                local joinedTeam = false
 
-                    local teamLeader =
-                        team:FindFirstChild(
-                            "TeamLeader"
-                        )
+                for _, team in ipairs(
+                    Teams:GetChildren()
+                ) do
 
-                    if teamLeader
-                        and (
-                            teamLeader.Value == ""
-                            or teamLeader.Value == nil
-                        )
-                    then
+                    if team:IsA("Team") then
 
-                        if ChangeTeamEvent then
+                        local teamLeader =
+                            team:FindFirstChild(
+                                "TeamLeader"
+                            )
 
-                            ChangeTeamEvent:
-                                FireServer(team)
+                        if teamLeader
+                            and (
+                                teamLeader.Value == ""
+                                or teamLeader.Value == nil
+                            )
+                        then
 
-                            joinedTeam = true
-                            break
+                            if ChangeTeamEvent then
+
+                                ChangeTeamEvent:
+                                    FireServer(team)
+
+                                joinedTeam = true
+                                break
+                            end
                         end
                     end
                 end
-            end
 
-            -- Không có team trống
-            if not joinedTeam then
+                -- Không tìm được team
+                -- thì reset bình thường
+                if not joinedTeam then
 
-                if humanoid
-                    and humanoid.Health > 0
-                then
+                    if humanoid.Health > 0 then
+                        humanoid.Health = 0
+                    end
+                end
+
+            --================================================
+            -- NORMAL RESET
+            --================================================
+
+            else
+
+                if humanoid.Health > 0 then
                     humanoid.Health = 0
                 end
             end
 
-            -- Chờ Character cũ biến mất
+            --================================================
+            -- CHỜ CHARACTER CŨ BIẾN MẤT
+            --================================================
+
             if getgenv().Farm then
 
                 local oldCharacter =
@@ -729,11 +764,15 @@ local REPO =
     "https://raw.githubusercontent.com/Altis-DEV/Dear-ReGui/refs/heads/main/"
 
 local ReGui = loadstring(
-    game:HttpGet(REPO .. "ReGui.lua")
+    game:HttpGet(
+        REPO .. "ReGui.lua"
+    )
 )()
 
 local PrefabChunk = loadstring(
-    game:HttpGet(REPO .. "Prefabs.lua")
+    game:HttpGet(
+        REPO .. "Prefabs.lua"
+    )
 )
 
 local BuildPrefabs =
@@ -751,7 +790,7 @@ ReGui:Init({
 --============================================================
 
 local Window = ReGui:Window({
-    Title = "Altis Hub - Build A Boat For Treasure V1.05",
+    Title = "Altis Hub - Build A Boat For Treasure V1.06",
     Size = UDim2.fromOffset(
         400,
         300
@@ -802,7 +841,7 @@ local LabelFarmTime =
     })
 
 --============================================================
--- REFRESH BUTTON
+-- REFRESH STATS
 --============================================================
 
 Window:Button({
@@ -823,6 +862,11 @@ Window:Separator({
     Text = "Farm Config"
 })
 
+--============================================================
+-- AUTO FARM
+-- Anti AFK được tích hợp vào đây
+--============================================================
+
 Window:Checkbox({
     Label = "Auto Farm",
     Value = false,
@@ -835,44 +879,44 @@ Window:Checkbox({
         getgenv().Farm =
             Value
 
+        -- Anti AFK đi cùng Auto Farm
+        getgenv().AntiAFK =
+            Value
+
         --====================================================
-        -- BẬT FARM
+        -- BẬT
         --====================================================
 
         if Value then
 
-            -- Mỗi lần bật lại:
-            -- reset Farm Time
-            -- bắt đầu tính thời gian mới
-
             FarmStartTime =
                 os.clock()
+
+            StoredFarmTime = 0
 
             LabelFarmTime.Text =
                 "Farm Time: 00:00:00"
 
-            -- Cycle mới
             FarmCycleId += 1
 
-            -- Nếu trước đó đang false
-            -- thì đây là một phiên farm mới
             if not OldValue then
                 isFirstAttempt = true
             end
 
         --====================================================
-        -- TẮT FARM
+        -- TẮT
         --====================================================
 
         else
 
-            -- Hủy cycle hiện tại
             FarmCycleId += 1
 
-            -- Giữ Farm Time tại thời điểm tắt
-            local elapsed =
+            StoredFarmTime =
                 os.clock()
                 - FarmStartTime
+
+            local elapsed =
+                StoredFarmTime
 
             local h =
                 math.floor(
@@ -901,6 +945,22 @@ Window:Checkbox({
 })
 
 --============================================================
+-- INSTANT RESPAWN
+--============================================================
+
+Window:Checkbox({
+    Label = "Instant Respawn (Team Change)",
+    Value = true,
+
+    Callback = function(_, Value)
+
+        getgenv().InstantRespawn =
+            Value
+
+    end
+})
+
+--============================================================
 -- SOCIAL
 --============================================================
 
@@ -908,17 +968,20 @@ Window:Separator({
     Text = "Social"
 })
 
-local DiscordLink = "https://discord.gg/bmm48KYWcd"
+local DiscordLink =
+    "https://discord.gg/bmm48KYWcd"
 
-local SocialRow = Window:Row({
-    Spacing = 4
-})
+local SocialRow =
+    Window:Row({
+        Spacing = 4
+    })
 
-local DiscordMessage = SocialRow:Label({
-    Text = "",
-    Visible = false,
-    LayoutOrder = 2
-})
+local DiscordMessage =
+    SocialRow:Label({
+        Text = "",
+        Visible = false,
+        LayoutOrder = 2
+    })
 
 local DiscordToken = 0
 
@@ -929,30 +992,49 @@ SocialRow:Button({
     Callback = function()
 
         DiscordToken += 1
-        local Token = DiscordToken
+        local Token =
+            DiscordToken
 
-        local Success = pcall(function()
-            setclipboard(DiscordLink)
-        end)
+        local Success =
+            pcall(function()
+                setclipboard(
+                    DiscordLink
+                )
+            end)
 
         if Success then
-            DiscordMessage.Text = "Discord Link Copied!"
+
+            DiscordMessage.Text =
+                "Discord Link Copied!"
+
             DiscordMessage.TextColor3 =
-                Color3.fromRGB(0, 255, 100)
+                Color3.fromRGB(
+                    0,
+                    255,
+                    100
+                )
+
         else
+
             DiscordMessage.Text =
                 "Failed To Copy Discord Link"
 
             DiscordMessage.TextColor3 =
-                Color3.fromRGB(255, 80, 80)
+                Color3.fromRGB(
+                    255,
+                    80,
+                    80
+                )
         end
 
         DiscordMessage.Visible = true
 
         task.delay(3, function()
+
             if Token == DiscordToken then
                 DiscordMessage.Visible = false
             end
+
         end)
     end
 })
@@ -974,11 +1056,13 @@ task.spawn(function()
         task.wait(1)
 
         --====================================================
-        -- CURRENT GOLD
+        -- CURRENT
         --====================================================
 
         local currentGold =
-            Gold and Gold.Value or 0
+            Gold
+            and Gold.Value
+            or 0
 
         local currentGoldBlock =
             GoldBlock
@@ -1001,37 +1085,21 @@ task.spawn(function()
         -- FARM TIME
         --====================================================
 
-        local farmTime = 0
+        local farmTime
 
         if getgenv().Farm then
 
-            -- Nếu vừa chuyển false -> true
-            -- reset thời gian
+            farmTime =
+                os.clock()
+                - FarmStartTime
 
-            if not LastFarmState then
+            StoredFarmTime =
+                farmTime
 
-                FarmStartTime =
-                    os.clock()
-
-                farmTime = 0
-
-            else
-
-                farmTime =
-                    os.clock()
-                    - FarmStartTime
-            end
         else
 
-            -- Khi Farm tắt:
-            -- giữ nguyên thời gian cuối cùng
-
-            if LastFarmState then
-
-                farmTime =
-                    os.clock()
-                    - FarmStartTime
-            end
+            farmTime =
+                StoredFarmTime
         end
 
         --====================================================
@@ -1066,32 +1134,44 @@ task.spawn(function()
 
         LabelCurrentGold.Text =
             "Current Gold: "
-            .. tostring(currentGold)
+            .. tostring(
+                currentGold
+            )
 
         LabelCurrentGoldBlock.Text =
             "Current Gold Block: "
-            .. tostring(currentGoldBlock)
+            .. tostring(
+                currentGoldBlock
+            )
 
         LabelGoldGained.Text =
             "Gold Gained: "
-            .. tostring(gainedGold)
+            .. tostring(
+                gainedGold
+            )
 
         LabelGoldBlockGained.Text =
             "Gold Block Gained: "
-            .. tostring(gainedGoldBlock)
+            .. tostring(
+                gainedGoldBlock
+            )
 
         LabelGoldPerHour.Text =
             "Gold Per Hour: "
-            .. tostring(goldPerHour)
+            .. tostring(
+                goldPerHour
+            )
             .. "/H"
 
         LabelGoldBlockPerHour.Text =
             "Gold Block Per Hour: "
-            .. tostring(goldBlockPerHour)
+            .. tostring(
+                goldBlockPerHour
+            )
             .. "/H"
 
         --====================================================
-        -- FARM TIME LABEL
+        -- FARM TIME
         --====================================================
 
         local h =
@@ -1116,9 +1196,5 @@ task.spawn(function()
                 m,
                 s
             )
-
-        -- Lưu trạng thái hiện tại
-        LastFarmState =
-            getgenv().Farm
     end
 end)
